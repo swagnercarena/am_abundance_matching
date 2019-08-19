@@ -35,18 +35,26 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 
 	# If verbose output the match between abundance function and input data
 	if verbose:
-		plt.semilogy(lf[:,0], lf[:,1],lw=6)
-		x = np.linspace(np.min(lf[:,0])-2, np.max(lf[:,0])+2, 101)
-		plt.semilogy(x, af(x),lw=3)
+		plt.plot(lf[:,0], lf[:,1],lw=6)
+		x, nd = af.get_number_density_table()
+		plt.plot(x, nd,lw=3)
 		if scatter:
-			plt.semilogy(lf[:,0],af._x_deconv[float(scatter*LF_SCATTER_MULT)])
+			plt.plot(af._x_deconv[float(scatter*LF_SCATTER_MULT)],nd)
 		plt.xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
 		plt.ylim([0.001,1])
 		plt.xlabel('Magnitude (M - 5 log h)')
 		plt.ylabel('Number Density (1/ (Mpc^3 h))')
-		plt.legend(['Input','Fit'])
+		plt.legend(['Input','Fit','Deconvolved'])
 		plt.title('Luminosity Function')
 		plt.yscale('log')
+		plt.show()
+
+	# Plot remainder to ensure the deconvolution returned reasonable results
+	if verbose and scatter:
+		plt.plot(x, remainder/nd)
+		plt.xlabel('Magnitude (M - 5 log h)')
+		plt.ylabel('(LF (deconv) - LF(orig)) / LF(orig)')
+		plt.show()
 
 	# Conduct the abundance matching
 	catalog = af.match(nd_halos)
