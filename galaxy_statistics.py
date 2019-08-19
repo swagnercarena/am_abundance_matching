@@ -40,9 +40,9 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 
 	# If verbose output the match between abundance function and input data
 	if verbose:
-		plt.plot(lf[:,0], lf[:,1],lw=6,c=custom_blues[2])
+		plt.plot(lf[:,0], lf[:,1],lw=6,c=custom_blues[3])
 		x = np.linspace(np.min(lf[:,0])-2, np.max(lf[:,0])+2, 101)
-		plt.semilogy(x, af(x),lw=3,c=custom_blues_complement[2])
+		plt.semilogy(x, af(x),lw=3,c=custom_blues_complement[3])
 		plt.xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
 		plt.ylim([0.001,1])
 		plt.xlabel('Magnitude (M - 5 log h)')
@@ -54,22 +54,24 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 
 	# Plot remainder to ensure the deconvolution returned reasonable results
 	if verbose and scatter:
+		f, ax = plt.subplots(2,1, sharex='col', sharey='row', figsize=(10,6), 
+			gridspec_kw={'height_ratios':[2, 1]})
+
 		x, nd = af.get_number_density_table()
-		plt.plot(x, nd,lw=3,c=custom_blues_complement[1])
+		ax[0].plot(x, nd,lw=3,c=custom_blues_complement[1])
 		if scatter:
-			plt.plot(af._x_deconv[float(scatter*LF_SCATTER_MULT)],nd,lw=3,
+			ax[0].plot(af._x_deconv[float(scatter*LF_SCATTER_MULT)],nd,lw=3,
 				c=custom_blues_complement[3])
-		plt.xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
-		plt.ylim([0.001,1])
-		plt.xlabel('Magnitude (M - 5 log h)')
-		plt.ylabel('Number Density (1/ (Mpc^3 h))')
-		plt.legend(['Input','Fit','Deconvolved'])
-		plt.title('Luminosity Function')
-		plt.yscale('log')
-		plt.show()
-		plt.plot(x, remainder/nd,lw=3,c=custom_blues[2])
-		plt.xlabel('Magnitude (M - 5 log h)')
-		plt.ylabel('(LF (deconv) - LF(orig)) / LF(orig)')
+		ax[0].set_xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
+		ax[0].set_ylim([1e-4,1])
+		ax[0].set_xlabel('Magnitude (M - 5 log h)')
+		ax[0].set_ylabel('Number Density (1/ (Mpc^3 h))')
+		ax[0].legend(['Input','Fit','Deconvolved'])
+		# ax[0].title('Luminosity Function')
+		ax[0].set_yscale('log')
+		ax[1].plot(x, remainder/nd,lw=3,c=custom_blues_complement[3])
+		ax[1].set_xlabel('Magnitude (M - 5 log h)')
+		ax[1].set_ylabel('(LF (deconv) - LF(orig)) / LF(orig)')
 		plt.show()
 
 	# Conduct the abundance matching
