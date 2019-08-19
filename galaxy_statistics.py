@@ -3,6 +3,11 @@ import numpy as np
 from Corrfunc.theory import wp
 from matplotlib import pyplot as plt
 
+# Nice set of colors for plotting
+custom_blues = ["#66CCFF", "#33BBFF", "#00AAFF", "#0088CC", "#006699", "#004466"]
+custom_blues_complement = ["#FF9966", "#FF7733", "#FF5500", "#CC4400", "#993300",
+ "#662200"]
+
 def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 	nthreads=1, scatter=0.0, deconv_repeat = 20, verbose=False):
 	"""	Generate the projected 2D correlation by abundance matching galaxies
@@ -35,9 +40,9 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 
 	# If verbose output the match between abundance function and input data
 	if verbose:
-		plt.plot(lf[:,0], lf[:,1],lw=6)
+		plt.plot(lf[:,0], lf[:,1],lw=6,c=custom_blues[2])
 		x = np.linspace(np.min(lf[:,0])-2, np.max(lf[:,0])+2, 101)
-		plt.semilogy(x, af(x),lw=3)
+		plt.semilogy(x, af(x),lw=3,c=custom_blues_complement[2])
 		plt.xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
 		plt.ylim([0.001,1])
 		plt.xlabel('Magnitude (M - 5 log h)')
@@ -45,13 +50,15 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 		plt.legend(['Input','Fit'])
 		plt.title('Luminosity Function')
 		plt.yscale('log')
+		plt.show()
 
 	# Plot remainder to ensure the deconvolution returned reasonable results
 	if verbose and scatter:
 		x, nd = af.get_number_density_table()
-		plt.plot(x, nd,lw=3)
+		plt.plot(x, nd,lw=3,c=custom_blues_complement[1])
 		if scatter:
-			plt.plot(af._x_deconv[float(scatter*LF_SCATTER_MULT)],nd)
+			plt.plot(af._x_deconv[float(scatter*LF_SCATTER_MULT)],nd,lw=3,
+				c=custom_blues_complement[3])
 		plt.xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
 		plt.ylim([0.001,1])
 		plt.xlabel('Magnitude (M - 5 log h)')
@@ -60,7 +67,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 		plt.title('Luminosity Function')
 		plt.yscale('log')
 		plt.show()
-		plt.plot(x, remainder/nd)
+		plt.plot(x, remainder/nd,lw=3,c=custom_blues[2])
 		plt.xlabel('Magnitude (M - 5 log h)')
 		plt.ylabel('(LF (deconv) - LF(orig)) / LF(orig)')
 		plt.show()
