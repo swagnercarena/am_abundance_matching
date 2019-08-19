@@ -115,7 +115,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 		wp_binned = np.zeros(len(wp_results))
 		for i in range(len(wp_results)):
 		    wp_binned[i] = wp_results[i][3]
-		wp_binneds.append[wp_binned]
+		wp_binneds.append(wp_binned)
 
 	return wp_binneds
 
