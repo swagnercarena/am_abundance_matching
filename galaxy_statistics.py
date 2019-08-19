@@ -86,33 +86,38 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 		plt.show()
 
 	# Conduct the abundance matching
-	if scatter:
-		catalog = af.match(nd_halos, scatters[0]*LF_SCATTER_MULT)
+	catalogs = []
+	if scatters is not None:
+		for scatter in scatters:
+			catalogs.append(af.match(nd_halos, scatters[0]*LF_SCATTER_MULT))
 	else:
-		catalog = af.match(nd_halos)
+		catalogs = [af.match(nd_halos)]
 
-	# A luminosity cutoff to use for the correlation function. We will pick -20 to start
-	sub_catalog = catalog<mag_cut
-	x = halos['x'][sub_catalog]
-	y = halos['y'][sub_catalog]
-	z = halos['z'][sub_catalog]
+	wp_binneds = []
+	for catalog in catalogs:
+		# A luminosity cutoff to use for the correlation function.
+		sub_catalog = catalog<mag_cut
+		x = halos['x'][sub_catalog]
+		y = halos['y'][sub_catalog]
+		z = halos['z'][sub_catalog]
 
-	# Generate rbins so that the average falls at r_p_data
-	rbins = np.zeros(len(r_p_data)+1)
-	rbins[1:-1] = 0.5*(r_p_data[:-1]+r_p_data[1:])
-	rbins[0] = 2*r_p_data[0]-rbins[1]
-	rbins[-1] = 2*r_p_data[-1]-rbins[-2]
+		# Generate rbins so that the average falls at r_p_data
+		rbins = np.zeros(len(r_p_data)+1)
+		rbins[1:-1] = 0.5*(r_p_data[:-1]+r_p_data[1:])
+		rbins[0] = 2*r_p_data[0]-rbins[1]
+		rbins[-1] = 2*r_p_data[-1]-rbins[-2]
 
-	# Calculate the projected correlation function
-	wp_results = wp(box_size, pimax, nthreads, rbins, x, y, z, verbose=False, 
-		output_rpavg=True)
+		# Calculate the projected correlation function
+		wp_results = wp(box_size, pimax, nthreads, rbins, x, y, z, verbose=False, 
+			output_rpavg=True)
 
-	# Extract the results
-	wp_binned = np.zeros(len(wp_results))
-	for i in range(len(wp_results)):
-	    wp_binned[i] = wp_results[i][3]
+		# Extract the results
+		wp_binned = np.zeros(len(wp_results))
+		for i in range(len(wp_results)):
+		    wp_binned[i] = wp_results[i][3]
+		wp_binneds.append[wp_binned]
 
-	return wp_binned
+	return wp_binneds
 
 
 
