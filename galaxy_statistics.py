@@ -69,7 +69,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 		ax[0].set_ylim([1e-5,1])
 		ax[0].set_ylabel('Number Density (1/ (Mpc^3 h))')
 		ax[0].legend(['Fit','Deconvolved'])
-		ax[0].set_title('Luminosity Function')
+		ax[0].set_title('Deconvolved Luminosity Function')
 		ax[0].set_yscale('log')
 		ax[1].plot(x, remainder/nd,lw=3,c=custom_blues_complement[3])
 		ax[1].set_xlabel('Magnitude (M - 5 log h)')
