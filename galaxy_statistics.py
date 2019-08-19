@@ -49,7 +49,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 		plt.figure(figsize=(10,8))
 		plt.plot(lf[:,0], lf[:,1],lw=6,c=custom_blues[2])
 		x = np.linspace(np.min(lf[:,0])-2, np.max(lf[:,0])+2, 101)
-		plt.semilogy(x, af(x),lw=3,c=custom_blues_complement[0])
+		plt.semilogy(x, af(x),lw=3,c=custom_blues[4])
 		plt.xlim([np.max(lf[:,0])+2,np.min(lf[:,0])])
 		plt.ylim([0.001,1])
 		plt.xlabel('Magnitude (M - 5 log h)')
@@ -65,12 +65,12 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 			gridspec_kw={'height_ratios':[2, 1]})
 
 		x, nd = af.get_number_density_table()
-		ax[0].plot(x, nd,lw=3,c=custom_blues_complement[0])
+		ax[0].plot(x, nd,lw=3,c=custom_blues[4])
 		legend = []
 		for scatter in scatters:
-			legend.append('Scatter = %.3f'%(scatter))
 			ax[0].plot(af._x_deconv[float(scatter*LF_SCATTER_MULT)],nd,lw=3,
-				c=custom_blues_complement[len(legend)])
+				c=custom_blues_complement[2*len(legend)])
+			legend.append('Scatter = %.3f'%(scatter))
 		ax[0].set_xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
 		ax[0].set_ylim([1e-5,1])
 		ax[0].set_ylabel('Number Density (1/ (Mpc^3 h))')
@@ -79,7 +79,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 		ax[0].set_yscale('log')
 		for r_i in range(len(remainders)):
 			ax[1].plot(x, remainders[r_i]/nd,lw=3,
-				c=custom_blues_complement[r_i+1])
+				c=custom_blues_complement[2*r_i])
 		ax[1].set_xlabel('Magnitude (M - 5 log h)')
 		ax[1].set_ylabel('(LF (deconv) - LF(orig)) / LF(orig)')
 		ax[1].set_xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
