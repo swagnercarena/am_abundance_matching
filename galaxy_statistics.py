@@ -9,7 +9,7 @@ custom_blues = ["#66CCFF", "#33BBFF", "#00AAFF", "#0088CC", "#006699", "#004466"
 custom_blues_complement = ["#FF9966", "#FF7733", "#FF5500", "#CC4400", "#993300",
  "#662200"]
 
-def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
+def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cuts,pimax=40.0,
 	nthreads=1, scatters=None, deconv_repeat = 20, verbose=False):
 	"""	Generate the projected 2D correlation by abundance matching galaxies
 		Parameters:
@@ -22,7 +22,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 			r_p_data: The positions at which to calculate the 2D correlation
 				function.
 			box_size: The size of the box (box length not volume)
-			mag_cut: The magnitude cut for w_p(r_p)
+			mag_cuts: The magnitude cuts for w_p(r_p) (must be a list)
 			pimax: The maximum redshift seperation to use in w_p(r_p) calculation
 			nthreads: The number of threads to use for CorrFunc
 			scatters: The scatters to deconvolve / re-introduce in the am (must
@@ -94,30 +94,33 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 		catalogs = [af.match(nd_halos)]
 
 	wp_binneds = []
-	for catalog in catalogs:
-		# A luminosity cutoff to use for the correlation function.
-		sub_catalog = catalog<mag_cut
-		print('Scatter %.2f catalog has %d galaxies'%(scatters[len(wp_binneds)],
-			np.sum(catalog)))
-		x = halos['x'][sub_catalog]
-		y = halos['y'][sub_catalog]
-		z = halos['z'][sub_catalog]
+	for mag_cut in mag_cuts:
+		wp_scatts = []
+		for catalog in catalogs:
+			# A luminosity cutoff to use for the correlation function.
+			sub_catalog = catalog<mag_cut
+			print('Scatter %.2f catalog has %d galaxies'%(scatters[len(wp_binneds)],
+				np.sum(catalog)))
+			x = halos['x'][sub_catalog]
+			y = halos['y'][sub_catalog]
+			z = halos['z'][sub_catalog]
 
-		# Generate rbins so that the average falls at r_p_data
-		rbins = np.zeros(len(r_p_data)+1)
-		rbins[1:-1] = 0.5*(r_p_data[:-1]+r_p_data[1:])
-		rbins[0] = 2*r_p_data[0]-rbins[1]
-		rbins[-1] = 2*r_p_data[-1]-rbins[-2]
+			# Generate rbins so that the average falls at r_p_data
+			rbins = np.zeros(len(r_p_data)+1)
+			rbins[1:-1] = 0.5*(r_p_data[:-1]+r_p_data[1:])
+			rbins[0] = 2*r_p_data[0]-rbins[1]
+			rbins[-1] = 2*r_p_data[-1]-rbins[-2]
 
-		# Calculate the projected correlation function
-		wp_results = wp(box_size, pimax, nthreads, rbins, x, y, z, verbose=False, 
-			output_rpavg=True)
+			# Calculate the projected correlation function
+			wp_results = wp(box_size, pimax, nthreads, rbins, x, y, z, verbose=False, 
+				output_rpavg=True)
 
-		# Extract the results
-		wp_binned = np.zeros(len(wp_results))
-		for i in range(len(wp_results)):
-		    wp_binned[i] = wp_results[i][3]
-		wp_binneds.append(wp_binned)
+			# Extract the results
+			wp_binned = np.zeros(len(wp_results))
+			for i in range(len(wp_results)):
+			    wp_binned[i] = wp_results[i][3]
+			wp_scatts.append(wp_binned)
+		wp_binneds.append(wp_scatts)
 
 	return wp_binneds
 
