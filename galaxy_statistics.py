@@ -2,6 +2,7 @@ from AbundanceMatching import AbundanceFunction, calc_number_densities, LF_SCATT
 import numpy as np
 from Corrfunc.theory import wp
 from matplotlib import pyplot as plt
+import matplotlib
 
 # Nice set of colors for plotting
 custom_blues = ["#66CCFF", "#33BBFF", "#00AAFF", "#0088CC", "#006699", "#004466"]
@@ -40,6 +41,8 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 
 	# If verbose output the match between abundance function and input data
 	if verbose:
+		matplotlib.rcParams.update({'font.size': 22})
+		plt.figure(figsize=(10,6))
 		plt.plot(lf[:,0], lf[:,1],lw=6,c=custom_blues[3])
 		x = np.linspace(np.min(lf[:,0])-2, np.max(lf[:,0])+2, 101)
 		plt.semilogy(x, af(x),lw=3,c=custom_blues_complement[3])
@@ -66,7 +69,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 		ax[0].set_ylim([1e-5,1])
 		ax[0].set_ylabel('Number Density (1/ (Mpc^3 h))')
 		ax[0].legend(['Fit','Deconvolved'])
-		# ax[0].title('Luminosity Function')
+		ax[0].set_title('Luminosity Function')
 		ax[0].set_yscale('log')
 		ax[1].plot(x, remainder/nd,lw=3,c=custom_blues_complement[3])
 		ax[1].set_xlabel('Magnitude (M - 5 log h)')
