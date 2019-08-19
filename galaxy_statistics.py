@@ -30,12 +30,16 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 	# halos in the box
 	af = AbundanceFunction(lf[:,0], lf[:,1], (-25, -5))
 	nd_halos = calc_number_densities(halos[af_criteria], 125)
+	if scatter>0:
+		remainder = af.deconvolute(scatter*LF_SCATTER_MULT, 20)
 
 	# If verbose output the match between abundance function and input data
 	if verbose:
 		plt.semilogy(lf[:,0], lf[:,1],lw=6)
 		x = np.linspace(np.min(lf[:,0])-2, np.max(lf[:,0])+2, 101)
 		plt.semilogy(x, af(x),lw=3)
+		if scatter:
+			plt.semilogy(lf[:,0],af._x_deconv[float(scatter*LF_SCATTER_MULT)])
 		plt.xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
 		plt.ylim([0.001,1])
 		plt.xlabel('Magnitude (M - 5 log h)')
