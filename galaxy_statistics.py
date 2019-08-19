@@ -78,7 +78,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cuts,pimax=40.0,
 		ax[0].set_title('Deconvolved Luminosity Function')
 		ax[0].set_yscale('log')
 		ax[1].set_xlabel('Magnitude (M - 5 log h)')
-		ax[1].set_ylabel('(LF (deconv) - LF(orig)) / LF(orig)')
+		ax[1].set_ylabel('(LF (deconv->conv) - LF) / LF')
 		ax[1].set_xlim([np.max(lf[:,0])+2,np.min(lf[:,0])])
 		y_max = 0
 		for r_i in range(len(remainders)):
