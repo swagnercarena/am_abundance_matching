@@ -47,7 +47,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 	if verbose:
 		matplotlib.rcParams.update({'font.size': 18})
 		plt.figure(figsize=(10,8))
-		plt.plot(lf[:,0], lf[:,1],lw=6,c=custom_blues[2])
+		plt.plot(lf[:,0], lf[:,1],lw=7,c=custom_blues[1])
 		x = np.linspace(np.min(lf[:,0])-2, np.max(lf[:,0])+2, 101)
 		plt.semilogy(x, af(x),lw=3,c=custom_blues[4])
 		plt.xlim([np.max(lf[:,0])+2,np.min(lf[:,0])])
@@ -70,7 +70,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 		for scatter in scatters:
 			ax[0].plot(af._x_deconv[float(scatter*LF_SCATTER_MULT)],nd,lw=3,
 				c=custom_blues_complement[2*len(legend)])
-			legend.append('Scatter = %.3f'%(scatter))
+			legend.append('Scatter = %.2f'%(scatter))
 		ax[0].set_xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
 		ax[0].set_ylim([1e-5,1])
 		ax[0].set_ylabel('Number Density (1/ (Mpc^3 h))')
