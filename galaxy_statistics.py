@@ -10,7 +10,7 @@ custom_blues_complement = ["#FF9966", "#FF7733", "#FF5500", "#CC4400", "#993300"
  "#662200"]
 
 def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
-	nthreads=1, scatter=0.0, deconv_repeat = 20, verbose=False):
+	nthreads=1, scatters=None, deconv_repeat = 20, verbose=False):
 	"""	Generate the projected 2D correlation by abundance matching galaxies
 		Parameters:
 			lf: The luminosity function. The first column is the magnitudes and the
@@ -25,7 +25,8 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 			mag_cut: The magnitude cut for w_p(r_p)
 			pimax: The maximum redshift seperation to use in w_p(r_p) calculation
 			nthreads: The number of threads to use for CorrFunc
-			scatter: The scatter to deconvolve / re-introduce in the am
+			scatters: The scatters to deconvolve / re-introduce in the am (must
+				be a list)
 			verbose: If set to true, will generate plots for visual inspection
 				of am outputs.
 		Returns:
@@ -36,16 +37,19 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 	# halos in the box
 	af = AbundanceFunction(lf[:,0], lf[:,1], (-25, -5))
 	nd_halos = calc_number_densities(halos[af_criteria], 125)
-	if scatter>0:
-		remainder = af.deconvolute(scatter*LF_SCATTER_MULT, deconv_repeat)
+	if scatters is not None:
+		remainder = []
+		for scatter in scatters:
+			remainder.append(
+				af.deconvolute(scatter*LF_SCATTER_MULT, deconv_repeat))
 
 	# If verbose output the match between abundance function and input data
 	if verbose:
 		matplotlib.rcParams.update({'font.size': 18})
 		plt.figure(figsize=(10,8))
-		plt.plot(lf[:,0], lf[:,1],lw=6,c=custom_blues[3])
+		plt.plot(lf[:,0], lf[:,1],lw=6,c=custom_blues[2])
 		x = np.linspace(np.min(lf[:,0])-2, np.max(lf[:,0])+2, 101)
-		plt.semilogy(x, af(x),lw=3,c=custom_blues_complement[3])
+		plt.semilogy(x, af(x),lw=3,c=custom_blues_complement[0])
 		plt.xlim([np.max(lf[:,0])+2,np.min(lf[:,0])])
 		plt.ylim([0.001,1])
 		plt.xlabel('Magnitude (M - 5 log h)')
@@ -56,19 +60,21 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 		plt.show()
 
 	# Plot remainder to ensure the deconvolution returned reasonable results
-	if verbose and scatter:
+	if verbose and scatters is not None:
 		f, ax = plt.subplots(2,1, sharex='col', sharey='row', figsize=(15,12), 
 			gridspec_kw={'height_ratios':[2, 1]})
 
 		x, nd = af.get_number_density_table()
-		ax[0].plot(x, nd,lw=3,c=custom_blues_complement[1])
-		if scatter:
+		ax[0].plot(x, nd,lw=3,c=custom_blues_complement[0])
+		legend = []
+		for scatter in scatters:
+			legend.append('Scatter = %f'%(scatter))
 			ax[0].plot(af._x_deconv[float(scatter*LF_SCATTER_MULT)],nd,lw=3,
-				c=custom_blues_complement[3])
+				c=custom_blues_complement[len(legend)])
 		ax[0].set_xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
 		ax[0].set_ylim([1e-5,1])
 		ax[0].set_ylabel('Number Density (1/ (Mpc^3 h))')
-		ax[0].legend(['Fit','Deconvolved'])
+		ax[0].legend(['Fit'] + legend)
 		ax[0].set_title('Deconvolved Luminosity Function')
 		ax[0].set_yscale('log')
 		ax[1].plot(x, remainder/nd,lw=3,c=custom_blues_complement[3])
@@ -78,7 +84,10 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 		plt.show()
 
 	# Conduct the abundance matching
-	catalog = af.match(nd_halos)
+	if scatter:
+		catalog = af.match(nd_halos, scatters[0]*LF_SCATTER_MULT)
+	else:
+		catalog = af.match(nd_halos)
 
 	# A luminosity cutoff to use for the correlation function. We will pick -20 to start
 	sub_catalog = catalog<mag_cut
