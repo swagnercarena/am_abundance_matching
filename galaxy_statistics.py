@@ -100,7 +100,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cuts,pimax=40.0,
 			# A luminosity cutoff to use for the correlation function.
 			sub_catalog = catalog<mag_cut
 			print('Scatter %.2f catalog has %d galaxies'%(scatters[len(wp_binneds)],
-				np.sum(catalog)))
+				np.sum(sub_catalog)))
 			x = halos['x'][sub_catalog]
 			y = halos['y'][sub_catalog]
 			z = halos['z'][sub_catalog]
