@@ -71,18 +71,18 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 			ax[0].plot(af._x_deconv[float(scatter*LF_SCATTER_MULT)],nd,lw=3,
 				c=custom_blues_complement[2*len(legend)])
 			legend.append('Scatter = %.2f'%(scatter))
-		ax[0].set_xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
+		ax[0].set_xlim([np.max(lf[:,0])+2,np.min(lf[:,0])])
 		ax[0].set_ylim([1e-5,1])
 		ax[0].set_ylabel('Number Density (1/ (Mpc^3 h))')
 		ax[0].legend(['Fit'] + legend)
 		ax[0].set_title('Deconvolved Luminosity Function')
 		ax[0].set_yscale('log')
+		ax[1].set_xlabel('Magnitude (M - 5 log h)')
+		ax[1].set_ylabel('(LF (deconv) - LF(orig)) / LF(orig)')
+		ax[1].set_xlim([np.max(lf[:,0])+2,np.min(lf[:,0])])
 		for r_i in range(len(remainders)):
 			ax[1].plot(x, remainders[r_i]/nd,lw=3,
 				c=custom_blues_complement[2*r_i])
-		ax[1].set_xlabel('Magnitude (M - 5 log h)')
-		ax[1].set_ylabel('(LF (deconv) - LF(orig)) / LF(orig)')
-		ax[1].set_xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
 		plt.show()
 
 	# Conduct the abundance matching
@@ -97,6 +97,8 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 	for catalog in catalogs:
 		# A luminosity cutoff to use for the correlation function.
 		sub_catalog = catalog<mag_cut
+		print('Scatter %.2f catalog has %d galaxies'%(scatters[len(wp_binneds)],
+			np.sum(catalog)))
 		x = halos['x'][sub_catalog]
 		y = halos['y'][sub_catalog]
 		z = halos['z'][sub_catalog]
