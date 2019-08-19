@@ -38,9 +38,9 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 	af = AbundanceFunction(lf[:,0], lf[:,1], (-25, -5))
 	nd_halos = calc_number_densities(halos[af_criteria], 125)
 	if scatters is not None:
-		remainder = []
+		remainders = []
 		for scatter in scatters:
-			remainder.append(
+			remainders.append(
 				af.deconvolute(scatter*LF_SCATTER_MULT, deconv_repeat))
 
 	# If verbose output the match between abundance function and input data
@@ -68,7 +68,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 		ax[0].plot(x, nd,lw=3,c=custom_blues_complement[0])
 		legend = []
 		for scatter in scatters:
-			legend.append('Scatter = %f'%(scatter))
+			legend.append('Scatter = %.3f'%(scatter))
 			ax[0].plot(af._x_deconv[float(scatter*LF_SCATTER_MULT)],nd,lw=3,
 				c=custom_blues_complement[len(legend)])
 		ax[0].set_xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
@@ -77,7 +77,9 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 		ax[0].legend(['Fit'] + legend)
 		ax[0].set_title('Deconvolved Luminosity Function')
 		ax[0].set_yscale('log')
-		ax[1].plot(x, remainder/nd,lw=3,c=custom_blues_complement[3])
+		for r_i in len(remainders):
+			ax[1].plot(x, remainders[r_i]/nd,lw=3,
+				c=custom_blues_complement[r_i+1])
 		ax[1].set_xlabel('Magnitude (M - 5 log h)')
 		ax[1].set_ylabel('(LF (deconv) - LF(orig)) / LF(orig)')
 		ax[1].set_xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
