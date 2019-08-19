@@ -42,9 +42,9 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 	# If verbose output the match between abundance function and input data
 	if verbose:
 		matplotlib.rcParams.update({'font.size': 18})
-		plt.figure(figsize=(10,6))
+		plt.figure(figsize=(10,8))
 		plt.plot(lf[:,0], lf[:,1],lw=6,c=custom_blues[3])
-		x = np.linspace(np.min(lf[:,0])-2, np.max(lf[:,0])+2, 101)
+		x = np.linspace(np.min(lf[:,0])-2, np.max(lf[:,0]), 101)
 		plt.semilogy(x, af(x),lw=3,c=custom_blues_complement[3])
 		plt.xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
 		plt.ylim([0.001,1])
@@ -57,7 +57,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 
 	# Plot remainder to ensure the deconvolution returned reasonable results
 	if verbose and scatter:
-		f, ax = plt.subplots(2,1, sharex='col', sharey='row', figsize=(20,12), 
+		f, ax = plt.subplots(2,1, sharex='col', sharey='row', figsize=(15,12), 
 			gridspec_kw={'height_ratios':[2, 1]})
 
 		x, nd = af.get_number_density_table()
