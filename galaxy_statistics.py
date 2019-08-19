@@ -1,9 +1,10 @@
-from AbundanceMatching import AbundanceFunction, calc_number_densities
+from AbundanceMatching import AbundanceFunction, calc_number_densities, LF_SCATTER_MULT
 import numpy as np
 from Corrfunc.theory import wp
+from matplotlib import pyplot as plt
 
 def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
-	nthreads=1):
+	nthreads=1, scatter=0, verbose=False):
 	"""	Generate the projected 2D correlation by abundance matching galaxies
 		Parameters:
 			lf: The luminosity function. The first column is the magnitudes and the
@@ -18,6 +19,9 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 			mag_cut: The magnitude cut for w_p(r_p)
 			pimax: The maximum redshift seperation to use in w_p(r_p) calculation
 			nthreads: The number of threads to use for CorrFunc
+			scatter: The scatter to deconvolve / re-introduce in the am
+			verbose: If set to true, will generate plots for visual inspection
+				of am outputs.
 		Returns:
 			w_p(r_p) at the r_p values specified by r_p_data.
 	"""
@@ -26,6 +30,19 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 	# halos in the box
 	af = AbundanceFunction(lf[:,0], lf[:,1], (-25, -5))
 	nd_halos = calc_number_densities(halos[af_criteria], 125)
+
+	# If verbose output the match between abundance function and input data
+	if verbose:
+		plt.semilogy(lf[:,0], lf[:,1],lw=6)
+		x = np.linspace(np.min(lf[:,0])-2, np.max(lf[:,0])+2, 101)
+		plt.semilogy(x, af(x),lw=3)
+		plt.xlim([np.max(lf[:,0])+2,np.min(lf[:,0])-2])
+		plt.ylim([0.001,1])
+		plt.xlabel('Magnitude (M - 5 log h)')
+		plt.ylabel('Number Density (1/ (Mpc^3 h))')
+		plt.legend(['Input','Fit'])
+		plt.title('Luminosity Function')
+		plt.yscale('log')
 
 	# Conduct the abundance matching
 	catalog = af.match(nd_halos)
