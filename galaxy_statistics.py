@@ -85,7 +85,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cuts,pimax=40.0,
 			ax[1].plot(x, remainders[r_i]/nd,lw=3,
 				c=custom_blues_complement[2*r_i])
 			y_max = max(y_max,np.max(remainders[r_i][x>np.min(lf[:,0])]))
-		ax[1].set_ylim([-1.2,y_max])
+		ax[1].set_ylim([-1.2,5])
 		plt.show()
 
 	# Conduct the abundance matching
