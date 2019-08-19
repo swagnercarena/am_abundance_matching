@@ -41,8 +41,8 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cut,pimax=40.0,
 
 	# If verbose output the match between abundance function and input data
 	if verbose:
-		matplotlib.rcParams.update({'font.size': 22})
-		plt.figure(figsize=(20,12))
+		matplotlib.rcParams.update({'font.size': 18})
+		plt.figure(figsize=(10,6))
 		plt.plot(lf[:,0], lf[:,1],lw=6,c=custom_blues[3])
 		x = np.linspace(np.min(lf[:,0])-2, np.max(lf[:,0])+2, 101)
 		plt.semilogy(x, af(x),lw=3,c=custom_blues_complement[3])
