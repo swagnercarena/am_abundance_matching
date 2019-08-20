@@ -165,7 +165,7 @@ def comp_deconv_steps(lf,scatters, deconv_repeats):
 			legend.append('Deconvolution Steps = %d'%(deconv_repeat))
 
 		ax[s_i].set_ylabel('(LF (deconv $\Rightarrow$ conv) - LF) / LF')
-		ax[s_i].set_xlim([np.max(lf[:,0])-2,np.min(lf[:,0])-4])
+		ax[s_i].set_xlim([np.max(lf[:,0])-2,-25])
 		ax[s_i].set_ylim([-1.2,y_max*1.2])
 		ax[s_i].set_title('Luminosity Function Remainder %.2f Scatter'%(
 			scatter))
