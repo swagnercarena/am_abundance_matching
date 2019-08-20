@@ -130,7 +130,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cuts,pimax=40.0,
 	return wp_binneds
 
 
-def comp_deconv_steps(lf,scatters, deconv_repeats):
+def comp_deconv_steps(lf,scatters, deconv_repeats,m_max=-25):
 	"""	Generate the projected 2D correlation by abundance matching galaxies
 		Parameters:
 			lf: The luminosity function. The first column is the magnitudes and the
@@ -161,11 +161,11 @@ def comp_deconv_steps(lf,scatters, deconv_repeats):
 			remainder = af.deconvolute(scatter*LF_SCATTER_MULT, deconv_repeat)/nd
 			ax[s_i].plot(x, remainder,lw=3,c=custom_blues_complement[len(
 				legend)])
-			y_max = max(y_max,np.max(remainder[x>np.min(lf[:,0])-2]))
+			y_max = max(y_max,np.max(remainder[x>m_max]))
 			legend.append('Deconvolution Steps = %d'%(deconv_repeat))
 
 		ax[s_i].set_ylabel('(LF (deconv $\Rightarrow$ conv) - LF) / LF')
-		ax[s_i].set_xlim([np.max(lf[:,0])-2,-25])
+		ax[s_i].set_xlim([np.max(lf[:,0])-2,m_max])
 		ax[s_i].set_ylim([-1.2,y_max*1.2])
 		ax[s_i].set_title('Luminosity Function Remainder %.2f Scatter'%(
 			scatter))
