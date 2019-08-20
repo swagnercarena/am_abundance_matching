@@ -161,13 +161,16 @@ def comp_deconv_steps(lf,scatters, deconv_repeats):
 			remainder = af.deconvolute(scatter*LF_SCATTER_MULT, deconv_repeat)/nd
 			ax[s_i].plot(x, remainder,lw=3,c=custom_blues_complement[2*len(
 				legend)])
-			y_max = max(y_max,np.max(remainder[x>np.min(lf[:,0])]))
+			y_max = max(y_max,np.max(remainder[x>np.min(lf[:,0])-2]))
 			legend.append('Deconvolution Steps = %d'%(deconv_repeat))
 
 		ax[s_i].set_ylabel('(LF (deconv $\Rightarrow$ conv) - LF) / LF')
-		ax[s_i].set_xlim([np.max(lf[:,0])+2,np.min(lf[:,0])])
+		ax[s_i].set_xlim([np.max(lf[:,0]),np.min(lf[:,0])-2])
+		ax[s_i].set_ylim([-1,y_max])
 		ax[s_i].set_title('Luminosity Function Remainder %.2f Scatter'%(
 			scatter))
+
+	ax[-1].legend(legend)
 
 
 
