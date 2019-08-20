@@ -27,6 +27,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cuts,pimax=40.0,
 			nthreads: The number of threads to use for CorrFunc
 			scatters: The scatters to deconvolve / re-introduce in the am (must
 				be a list)
+			deconv_repeat: The number of deconvolution steps to conduct
 			verbose: If set to true, will generate plots for visual inspection
 				of am outputs.
 		Returns:
@@ -51,7 +52,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cuts,pimax=40.0,
 		x = np.linspace(np.min(lf[:,0])-2, np.max(lf[:,0])+2, 101)
 		plt.semilogy(x, af(x),lw=3,c=custom_blues[4])
 		plt.xlim([np.max(lf[:,0])+2,np.min(lf[:,0])])
-		plt.ylim([0.001,1])
+		plt.ylim([1e-5,1])
 		plt.xlabel('Magnitude (M - 5 log h)')
 		plt.ylabel('Number Density (1/ (Mpc^3 h))')
 		plt.legend(['Input','Fit'])
@@ -78,7 +79,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cuts,pimax=40.0,
 		ax[0].set_title('Deconvolved Luminosity Function')
 		ax[0].set_yscale('log')
 		ax[1].set_xlabel('Magnitude (M - 5 log h)')
-		ax[1].set_ylabel(r'(LF (deconv $\Right_arrow$ conv) - LF) / LF')
+		ax[1].set_ylabel('(LF (deconv $\Rightarrow$ conv) - LF) / LF')
 		ax[1].set_xlim([np.max(lf[:,0])+2,np.min(lf[:,0])])
 		y_max = 0
 		for r_i in range(len(remainders)):
@@ -128,6 +129,45 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cuts,pimax=40.0,
 
 	return wp_binneds
 
+
+def comp_deconv_steps(lf,scatters, deconv_repeats):
+	"""	Generate the projected 2D correlation by abundance matching galaxies
+		Parameters:
+			lf: The luminosity function. The first column is the magnitudes and the
+				second column is the density in units of 1/Mpc^3.
+			scatters: The scatters to deconvolve / re-introduce in the am (must
+				be a list)
+		Returns:
+			w_p(r_p) at the r_p values specified by r_p_data.
+	"""
+
+	# Initialize abundance function and calculate the number density of the
+	# halos in the box
+	af = AbundanceFunction(lf[:,0], lf[:,1], (-25, -5))
+
+	f, ax = plt.subplots(len(scatters),1, sharex='col', sharey='row', 
+		figsize=(15,12))
+	ax[-1].set_xlabel('Magnitude (M - 5 log h)')
+	x, nd = af.get_number_density_table()
+
+	# For each scatter and each number of deconvolution steps, plot the
+	# dependence of the remainder on the step.
+	for s_i in range(len(scatters)):
+		scatter = scatters[s_i]
+		y_max = 0
+		legend = []
+
+		for deconv_repeat in deconv_repeats:
+			remainder = af.deconvolute(scatter*LF_SCATTER_MULT, deconv_repeat)
+			ax[s_i].plot(x, remainder,lw=3,c=custom_blues_complement[2*len(
+				legend)])
+			y_max = max(y_max,np.max(remainder[x>np.min(lf[:,0])]))
+			legend.append('Deconvolution Steps = %d'%(deconv_repeat))
+
+		ax[s_i].set_ylabel('(LF (deconv $\Right_arrow$ conv) - LF) / LF')
+		ax[s_i].set_xlim([np.max(lf[:,0])+2,np.min(lf[:,0])])
+		ax[s_i].set_title('Luminosity Function Remainder %.2f Scatter'%(
+			scatter))
 
 
 
