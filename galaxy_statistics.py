@@ -146,7 +146,7 @@ def comp_deconv_steps(lf,scatters, deconv_repeats):
 	af = AbundanceFunction(lf[:,0], lf[:,1], (-25, -5))
 
 	f, ax = plt.subplots(len(scatters),1, sharex='col', sharey='row', 
-		figsize=(15,17))
+		figsize=(13,16))
 	ax[-1].set_xlabel('Magnitude (M - 5 log h)')
 	x, nd = af.get_number_density_table()
 
@@ -165,12 +165,12 @@ def comp_deconv_steps(lf,scatters, deconv_repeats):
 			legend.append('Deconvolution Steps = %d'%(deconv_repeat))
 
 		ax[s_i].set_ylabel('(LF (deconv $\Rightarrow$ conv) - LF) / LF')
-		ax[s_i].set_xlim([np.max(lf[:,0]),np.min(lf[:,0])-2])
-		ax[s_i].set_ylim([-1,y_max*1.2])
+		ax[s_i].set_xlim([np.max(lf[:,0])-2,np.min(lf[:,0])-4])
+		ax[s_i].set_ylim([-1.2,y_max*1.2])
 		ax[s_i].set_title('Luminosity Function Remainder %.2f Scatter'%(
 			scatter))
 
-	ax[-1].legend(legend)
+	ax[0].legend(legend)
 
 
 
