@@ -159,7 +159,7 @@ def comp_deconv_steps(lf,scatters, deconv_repeats):
 
 		for deconv_repeat in deconv_repeats:
 			remainder = af.deconvolute(scatter*LF_SCATTER_MULT, deconv_repeat)/nd
-			ax[s_i].plot(x, remainder,lw=3,c=custom_blues_complement[2*len(
+			ax[s_i].plot(x, remainder,lw=3,c=custom_blues_complement[len(
 				legend)])
 			y_max = max(y_max,np.max(remainder[x>np.min(lf[:,0])-2]))
 			legend.append('Deconvolution Steps = %d'%(deconv_repeat))
