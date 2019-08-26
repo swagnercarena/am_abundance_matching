@@ -37,7 +37,7 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cuts,pimax=40.0,
 	# Initialize abundance function and calculate the number density of the
 	# halos in the box
 	af = AbundanceFunction(lf[:,0], lf[:,1], (-25, -5))
-	nd_halos = calc_number_densities(halos[af_criteria], 125)
+	nd_halos = calc_number_densities(halos[af_criteria], box_size)
 	if scatters is not None:
 		remainders = []
 		for scatter in scatters:
@@ -106,9 +106,9 @@ def generate_wp(lf,halos,af_criteria,r_p_data,box_size,mag_cuts,pimax=40.0,
 			sub_catalog = catalog<mag_cut
 			print('Scatter %.2f catalog has %d galaxies'%(scatters[len(wp_scatts)],
 				np.sum(sub_catalog)))
-			x = halos['x'][sub_catalog]
-			y = halos['y'][sub_catalog]
-			z = halos['z'][sub_catalog]
+			x = halos['px'][sub_catalog]
+			y = halos['py'][sub_catalog]
+			z = halos['pz'][sub_catalog]
 
 			# Generate rbins so that the average falls at r_p_data
 			rbins = np.zeros(len(r_p_data)+1)
