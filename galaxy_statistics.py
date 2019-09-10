@@ -181,7 +181,7 @@ class AMLikelihood(object):
 		Currently assumes a fixed cosmology.
 	"""
 	def __init__(self,lf_list,halos,af_criteria,box_size,r_p_data,mag_cuts,
-		wp_data_list, pimax, nthreads, deconv_repeat):
+		wp_data_list, wp_cov_list, pimax, nthreads, deconv_repeat):
 		""" Initialize AMLikelihood object. This involves initializing an
 			AbundanceFunction object for each luminosity function.
 			Parameters:
@@ -208,10 +208,11 @@ class AMLikelihood(object):
 		"""
 		# Save dictionairy parameter along with box size object
 		self.halos = halos
+		self.af_criteria = af_criteria
 		self.box_size = box_size
 		self.r_p_data = r_p_data
 		self.mag_cuts = mag_cuts
-		self.wp_data_list = self.wp_data_list
+		self.wp_data_list = wp_data_list
 		self.wp_cov_list = wp_cov_list
 		self.pimax = pimax
 		self.nthreads = nthreads
@@ -227,8 +228,9 @@ class AMLikelihood(object):
 		rbins[1:-1] = 0.5*(r_p_data[:-1]+r_p_data[1:])
 		rbins[0] = 2*r_p_data[0]-rbins[1]
 		rbins[-1] = 2*r_p_data[-1]-rbins[-2]
+		self.rbins = rbins
 
-	def log_likelihood(params):
+	def log_likelihood(self, params, verbose=False):
 		""" Calculate the loglikelihood of the particular parameter values
 			for abundance matching given the data. Currently supports
 			scatter and mu_cut.
@@ -244,7 +246,7 @@ class AMLikelihood(object):
 		# dictionairy changes (or made more general).
 		halos_post_cut = self.halos['mvir_now']/self.halos['mvir'] > mu_cut
 		nd_halos = calc_number_densities(self.halos[self.af_criteria][
-			halos_post_cut], box_size)
+			halos_post_cut], self.box_size)
 		# Deconvolve the scatter and generate catalogs for each mag_cut
 		catalog_list = []
 		for af in self.af_list:
@@ -257,13 +259,14 @@ class AMLikelihood(object):
 			sub_catalog = catalog < self.mag_cuts[c_i]
 
 			# Extract positions of halos in our catalog
-			x = halos['px'][halos_post_cut]; x=x[sub_catalog]
-			y = halos['py'][halos_post_cut]; y=y[sub_catalog]
-			z = halos['pz'][halos_post_cut]; z=z[sub_catalog]
+			x = self.halos['px'][halos_post_cut]; x=x[sub_catalog]
+			y = self.halos['py'][halos_post_cut]; y=y[sub_catalog]
+			z = self.halos['pz'][halos_post_cut]; z=z[sub_catalog]
 
 			# Get the wp for the catalog
-			wp_results = wp(box_size, pimax, nthreads, rbins, x, y, z, 
-				verbose=False, output_rpavg=True)
+			wp_results = wp(self.box_size, self.pimax, self.nthreads, 
+				self.rbins, x, y, z, verbose=verbose, 
+				output_rpavg=True)
 			wp_binned = np.zeros(len(wp_results))
 			for i in range(len(wp_results)):
 			    wp_binned[i] = wp_results[i][3]
