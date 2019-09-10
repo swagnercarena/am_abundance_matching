@@ -176,5 +176,106 @@ def comp_deconv_steps(lf,scatters, deconv_repeats,m_max=-25):
 
 	ax[0].legend(legend)
 
+class AMLikelihood(object):
+	""" A class responsible for AM likelihood calculations for parameter fitting.
+		Currently assumes a fixed cosmology.
+	"""
+	def __init__(self,lf_list,halos,af_criteria,box_size,r_p_data,mag_cuts,
+		wp_data_list, pimax, nthreads, deconv_repeat):
+		""" Initialize AMLikelihood object. This involves initializing an
+			AbundanceFunction object for each luminosity function.
+			Parameters:
+				lf_list: List of luminosity functions
+				halos: Halos dictionairy. halos[af_criteria] should return
+					a numpy array of values for the abundance matching
+					criteria for the halos.
+				af_criteria: A string that will be used to index into halos
+					for the abundance matching criteria data.
+				box_size: The size of the box being used (length)
+				r_p_data: The positions at which to calculate the 2D correlation
+					function.
+				mag_cuts: The magnitude cuts for w_p(r_p) (must be a list)
+				wp_data_list: The list of wp_data corresponding to lf_list 
+					to be used for the likelihood function
+				wp_cov_list: The list of covariance matrices for w_p. Also
+					important for the covariance function.
+				pimax: The maximum redshift seperation to use in w_p(r_p) 
+					calculation
+				nthreads: The number of threads to use for CorrFunc
+				deconv_repeat: The number of deconvolution steps to conduct
+			Output:
+				Initialized class
+		"""
+		# Save dictionairy parameter along with box size object
+		self.halos = halos
+		self.box_size = box_size
+		self.r_p_data = r_p_data
+		self.mag_cuts = mag_cuts
+		self.wp_data_list = self.wp_data_list
+		self.wp_cov_list = wp_cov_list
+		self.pimax = pimax
+		self.nthreads = nthreads
+		self.deconv_repeat = deconv_repeat
+		# Generate list of abundance matching functions
+		self.af_list = []
+		for lf in lf_list:
+			af = AbundanceFunction(lf[:,0], lf[:,1], (-25, -5))
+			self.af_list.append(af)
+
+		# Generate rbins so that the average falls at r_p_data
+		rbins = np.zeros(len(r_p_data)+1)
+		rbins[1:-1] = 0.5*(r_p_data[:-1]+r_p_data[1:])
+		rbins[0] = 2*r_p_data[0]-rbins[1]
+		rbins[-1] = 2*r_p_data[-1]-rbins[-2]
+
+	def log_likelihood(params):
+		""" Calculate the loglikelihood of the particular parameter values
+			for abundance matching given the data. Currently supports
+			scatter and mu_cut.
+			Parameters:
+				params: A vector containing [scatter,mu_cut] to be tested.
+			Output:
+				The log likelihood.
+		"""
+		scatter = params[0]
+		mu_cut  = params[1]
+		# We assume here that the maximum mass is stored as mvir and 
+		# the current mass is stored as mvir_now. Need to be changed if the
+		# dictionairy changes (or made more general).
+		halos_post_cut = self.halos['mvir_now']/self.halos['mvir'] > mu_cut
+		nd_halos = calc_number_densities(self.halos[self.af_criteria][
+			halos_post_cut], box_size)
+		# Deconvolve the scatter and generate catalogs for each mag_cut
+		catalog_list = []
+		for af in self.af_list:
+			af.deconvolute(scatter*LF_SCATTER_MULT,self.deconv_repeat)
+			catalog_list.append(af.match(nd_halos,scatter*LF_SCATTER_MULT))
+
+		log_like = 0
+		for c_i in range(len(catalog_list)):
+			catalog = catalog_list[c_i]
+			sub_catalog = catalog < self.mag_cuts[c_i]
+
+			# Extract positions of halos in our catalog
+			x = halos['px'][halos_post_cut]; x=x[sub_catalog]
+			y = halos['py'][halos_post_cut]; y=y[sub_catalog]
+			z = halos['pz'][halos_post_cut]; z=z[sub_catalog]
+
+			# Get the wp for the catalog
+			wp_results = wp(box_size, pimax, nthreads, rbins, x, y, z, 
+				verbose=False, output_rpavg=True)
+			wp_binned = np.zeros(len(wp_results))
+			for i in range(len(wp_results)):
+			    wp_binned[i] = wp_results[i][3]
+
+			dif_vector = wp_binned - self.wp_data_list[c_i]
+			log_like += - 0.5*np.dot(np.dot(dif_vector,np.linalg.inv(
+				self.wp_cov_list[c_i])),dif_vector)
+
+		return log_like
+
+
+
+
 
 
