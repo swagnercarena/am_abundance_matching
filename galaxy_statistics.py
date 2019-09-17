@@ -100,7 +100,7 @@ def generate_wp(lf_list,halos,af_criteria,r_p_data,box_size,mag_cuts,pimax=40.0,
 		catalogs = []
 		if scatters is not None:
 			for scatter in scatters:
-				catalogs.append(af.match(nd_halos, scatters[0]*LF_SCATTER_MULT,
+				catalogs.append(af.match(nd_halos, scatter*LF_SCATTER_MULT,
 					do_rematch=False))
 		else:
 			catalogs = [af.match(nd_halos)]
