@@ -100,7 +100,8 @@ def generate_wp(lf_list,halos,af_criteria,r_p_data,box_size,mag_cuts,pimax=40.0,
 		catalogs = []
 		if scatters is not None:
 			for scatter in scatters:
-				catalogs.append(af.match(nd_halos, scatters[0]*LF_SCATTER_MULT))
+				catalogs.append(af.match(nd_halos, scatters[0]*LF_SCATTER_MULT,
+					do_rematch=False))
 		else:
 			catalogs = [af.match(nd_halos)]
 
@@ -251,7 +252,8 @@ class AMLikelihood(object):
 		catalog_list = []
 		for af in self.af_list:
 			af.deconvolute(scatter*LF_SCATTER_MULT,self.deconv_repeat)
-			catalog_list.append(af.match(nd_halos,scatter*LF_SCATTER_MULT))
+			catalog_list.append(af.match(nd_halos,scatter*LF_SCATTER_MULT,
+				do_rematch=False))
 
 		log_like = 0
 		for c_i in range(len(catalog_list)):
