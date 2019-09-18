@@ -284,9 +284,9 @@ class AMLikelihood(object):
 				self.wp_cov_list[c_i])),dif_vector)
 
 		wp_saved_results = np.array(wp_saved_results)
-		np.savetxt(wp_save_path+'_%d%d_wp.txt'%(scatter*1e6,mu_cut*1e6),
+		np.savetxt(self.wp_save_path+'_%d%d_wp.txt'%(scatter*1e6,mu_cut*1e6),
 			wp_saved_results)
-		np.savetxt(wp_save_path+'_%d%d_p.txt'%(scatter*1e6,mu_cut*1e6),
+		np.savetxt(self.wp_save_path+'_%d%d_p.txt'%(scatter*1e6,mu_cut*1e6),
 			params)
 
 		return log_like
