@@ -182,7 +182,8 @@ class AMLikelihood(object):
 		Currently assumes a fixed cosmology.
 	"""
 	def __init__(self,lf_list,halos,af_criteria,box_size,r_p_data,mag_cuts,
-		wp_data_list, wp_cov_list, pimax, nthreads, deconv_repeat):
+		wp_data_list, wp_cov_list, pimax, nthreads, deconv_repeat,
+		wp_save_path):
 		""" Initialize AMLikelihood object. This involves initializing an
 			AbundanceFunction object for each luminosity function.
 			Parameters:
@@ -204,6 +205,8 @@ class AMLikelihood(object):
 					calculation
 				nthreads: The number of threads to use for CorrFunc
 				deconv_repeat: The number of deconvolution steps to conduct
+				wp_save_path: A unique path to which to save the parameter
+					values and 2d projected correlation functions.
 			Output:
 				Initialized class
 		"""
@@ -230,6 +233,7 @@ class AMLikelihood(object):
 		rbins[0] = 2*r_p_data[0]-rbins[1]
 		rbins[-1] = 2*r_p_data[-1]-rbins[-2]
 		self.rbins = rbins
+		self.wp_save_path = wp_save_path
 
 	def log_likelihood(self, params, verbose=False):
 		""" Calculate the loglikelihood of the particular parameter values
@@ -256,6 +260,7 @@ class AMLikelihood(object):
 				do_rematch=False))
 
 		log_like = 0
+		wp_saved_results = []
 		for c_i in range(len(catalog_list)):
 			catalog = catalog_list[c_i]
 			sub_catalog = catalog < self.mag_cuts[c_i]
@@ -272,10 +277,17 @@ class AMLikelihood(object):
 			wp_binned = np.zeros(len(wp_results))
 			for i in range(len(wp_results)):
 			    wp_binned[i] = wp_results[i][3]
+			wp_saved_results.append(wp_binned)
 
 			dif_vector = wp_binned - self.wp_data_list[c_i]
 			log_like += - 0.5*np.dot(np.dot(dif_vector,np.linalg.inv(
 				self.wp_cov_list[c_i])),dif_vector)
+
+		wp_saved_results = np.array(wp_saved_results)
+		np.savetxt(wp_save_path+'_%d%d_wp.txt'%(scatter*1e6,mu_cut*1e6),
+			wp_saved_results)
+		np.savetxt(wp_save_path+'_%d%d_p.txt'%(scatter*1e6,mu_cut*1e6),
+			params)
 
 		return log_like
 
