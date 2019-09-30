@@ -83,7 +83,7 @@ n_params = 2; n_walkers = 6;
 n_steps = 1000
 n_threads = 6;
 pos = np.random.rand(n_params*n_walkers).reshape((n_walkers,n_params))*0.3
-sampler = emcee.EnsembleSampler(n_walkers, n_params, like_class.log_likelihood.
+sampler = emcee.EnsembleSampler(n_walkers, n_params, like_class.log_likelihood,
 	threads=n_threads)
 
 import csv   
