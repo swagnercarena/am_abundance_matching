@@ -80,7 +80,7 @@ like_class = AMLikelihood(lf_list,halos,af_criteria,box_size,r_p_data,mag_cuts,
 	wp_data_list,wp_cov_list,pimax,nthreads,deconv_repeat,wp_save_path)
 
 n_params = 2; n_walkers = 20;
-n_steps = 10
+n_steps = 1000
 pos = np.random.rand(n_params*n_walkers).reshape((n_walkers,n_params))*0.3
 sampler = emcee.EnsembleSampler(n_walkers, n_params, like_class.log_likelihood)
 
@@ -91,7 +91,7 @@ with open(csv_path, 'w') as f:
 	writer = csv.writer(f)
 	writer.writerow(fields)
 	save_step = 10
-	for step in tqdm(range(n_steps//save_step)):
+	for step in tqdm(range(n_steps//save_step+1)):
 		pos, _, _ = sampler.run_mcmc(pos, save_step)
 		if step > 100//save_step:
 			writer.writerows(sampler.chain[:,-10:,:].reshape(-1,n_params))
