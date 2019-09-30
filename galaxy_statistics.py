@@ -246,6 +246,8 @@ class AMLikelihood(object):
 		"""
 		scatter = params[0]
 		mu_cut  = params[1]
+		if scatter < 0.0 or mu_cut < 0.0:
+			return -np.inf
 		# We assume here that the maximum mass is stored as mvir and 
 		# the current mass is stored as mvir_now. Need to be changed if the
 		# dictionairy changes (or made more general).
