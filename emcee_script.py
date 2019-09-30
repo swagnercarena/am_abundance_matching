@@ -79,10 +79,12 @@ af_criteria = 'vmax'
 like_class = AMLikelihood(lf_list,halos,af_criteria,box_size,r_p_data,mag_cuts,
 	wp_data_list,wp_cov_list,pimax,nthreads,deconv_repeat,wp_save_path)
 
-n_params = 2; n_walkers = 20;
+n_params = 2; n_walkers = 6;
 n_steps = 1000
+n_threads = 6;
 pos = np.random.rand(n_params*n_walkers).reshape((n_walkers,n_params))*0.3
-sampler = emcee.EnsembleSampler(n_walkers, n_params, like_class.log_likelihood)
+sampler = emcee.EnsembleSampler(n_walkers, n_params, like_class.log_likelihood.
+	threads=n_threads)
 
 import csv   
 fields=['scatter','mu_cut']
