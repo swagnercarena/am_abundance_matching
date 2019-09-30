@@ -21,23 +21,23 @@ wp_20 = np.loadtxt(wp_path + 'wp_20.dat')
 wp_20_cov_temp = np.loadtxt(wp_path + 'wp_covar_20.dat')
 wp_20_cov = np.zeros((len(wp_20),len(wp_20)))
 for wp_tup in wp_20_cov_temp:
-    wp_20_cov[int(wp_tup[0])-1,int(wp_tup[1])-1] = wp_tup[2]
-    wp_20_cov[int(wp_tup[1])-1,int(wp_tup[0])-1] = wp_tup[2]
-    
+	wp_20_cov[int(wp_tup[0])-1,int(wp_tup[1])-1] = wp_tup[2]
+	wp_20_cov[int(wp_tup[1])-1,int(wp_tup[0])-1] = wp_tup[2]
+	
 wp_18 = np.loadtxt(wp_path + 'wp_18.dat')
 wp_18_cov_temp = np.loadtxt(wp_path + 'wp_covar_18.dat')
 wp_18_cov = np.zeros((len(wp_18),len(wp_18)))
 for wp_tup in wp_18_cov_temp:
-    wp_18_cov[int(wp_tup[0])-1,int(wp_tup[1])-1] = wp_tup[2]
-    wp_18_cov[int(wp_tup[1])-1,int(wp_tup[0])-1] = wp_tup[2]
-    
+	wp_18_cov[int(wp_tup[0])-1,int(wp_tup[1])-1] = wp_tup[2]
+	wp_18_cov[int(wp_tup[1])-1,int(wp_tup[0])-1] = wp_tup[2]
+	
 wp_21 = np.loadtxt(wp_path + 'wp_21.dat')
 wp_21_cov_temp = np.loadtxt(wp_path + 'wp_covar_21.dat')
 wp_21_cov = np.zeros((len(wp_21),len(wp_21)))
 for wp_tup in wp_21_cov_temp:
-    wp_21_cov[int(wp_tup[0])-1,int(wp_tup[1])-1] = wp_tup[2]
-    wp_21_cov[int(wp_tup[1])-1,int(wp_tup[0])-1] = wp_tup[2]
-    
+	wp_21_cov[int(wp_tup[0])-1,int(wp_tup[1])-1] = wp_tup[2]
+	wp_21_cov[int(wp_tup[1])-1,int(wp_tup[0])-1] = wp_tup[2]
+	
 r_cutoff = 15
 
 wp_20_cov=wp_20_cov[wp_20[:,0]<r_cutoff,:]
@@ -88,14 +88,14 @@ import csv
 fields=['scatter','mu_cut']
 csv_path = '/u/ki/swagnerc/abundance_matching/wp_results/mc_chains.csv'
 with open(csv_path, 'w') as f:
-    writer = csv.writer(f)
-    writer.writerow(fields)
-    save_step = 10
-    for step in range(n_steps//save_step):
-    	print('Working on steps %d-%d'%(step*save_step,(step+1)*save_step))
-        pos, _, _ = sampler.run_mcmc(pos, save_step)
-        if step > 100//save_step:
-            writer.writerows(sampler.chain[:,-10:,:].reshape(-1,n_params))
+	writer = csv.writer(f)
+	writer.writerow(fields)
+	save_step = 10
+	for step in range(n_steps//save_step):
+		print('Working on steps %d-%d'%(step*save_step,(step+1)*save_step))
+		pos, _, _ = sampler.run_mcmc(pos, save_step)
+		if step > 100//save_step:
+			writer.writerows(sampler.chain[:,-10:,:].reshape(-1,n_params))
 
 
 
