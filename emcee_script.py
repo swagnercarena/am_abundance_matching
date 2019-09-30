@@ -72,7 +72,7 @@ wp_data_list = [wp_21[:,0],wp_20[:,0],wp_18[:,0]]
 wp_cov_list = [wp_21_cov,wp_20_cov,wp_18_cov]
 nthreads = 1
 
-wp_save_path = '/u/ki/swagnerc/abundance_matching/wp_results/wp_'
+wp_save_path = '/u/ki/swagnerc/abundance_matching/results/wp_'
 
 af_criteria = 'vmax'
 
@@ -88,7 +88,7 @@ sampler = emcee.EnsembleSampler(n_walkers, n_params, like_class.log_likelihood,
 
 import csv   
 fields=['scatter','mu_cut']
-csv_path = '/u/ki/swagnerc/abundance_matching/wp_results/mc_chains.csv'
+csv_path = '/u/ki/swagnerc/abundance_matching/results/mc_chains.csv'
 with open(csv_path, 'w') as f:
 	writer = csv.writer(f)
 	writer.writerow(fields)
