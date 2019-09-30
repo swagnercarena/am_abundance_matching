@@ -3,6 +3,7 @@ import emcee
 import numpy as np
 import Corrfunc
 from Corrfunc.theory import wp
+from astropy.io import fits
 from galaxy_statistics import AMLikelihood
 
 # First load all of the data we'll use for the MCMC sampling
