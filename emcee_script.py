@@ -72,7 +72,7 @@ wp_data_list = [wp_21[:,0],wp_20[:,0],wp_18[:,0]]
 wp_cov_list = [wp_21_cov,wp_20_cov,wp_18_cov]
 nthreads = 1
 
-wp_save_path = '/u/ki/swagnerc/abundance_matching/wp_results/'
+wp_save_path = '/u/ki/swagnerc/abundance_matching/wp_results/wp_'
 
 af_criteria = 'vmax'
 
