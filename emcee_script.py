@@ -5,6 +5,7 @@ import Corrfunc
 from Corrfunc.theory import wp
 from astropy.io import fits
 from galaxy_statistics import AMLikelihood
+from tqdm import tqdm
 
 # First load all of the data we'll use for the MCMC sampling
 
@@ -80,7 +81,6 @@ like_class = AMLikelihood(lf_list,halos,af_criteria,box_size,r_p_data,mag_cuts,
 
 n_params = 2; n_walkers = 20;
 n_steps = 10
-n_threads = 4
 pos = np.random.rand(n_params*n_walkers).reshape((n_walkers,n_params))*0.3
 sampler = emcee.EnsembleSampler(n_walkers, n_params, like_class.log_likelihood,
 	threads=n_threads)
@@ -92,8 +92,7 @@ with open(csv_path, 'w') as f:
 	writer = csv.writer(f)
 	writer.writerow(fields)
 	save_step = 10
-	for step in range(n_steps//save_step):
-		print('Working on steps %d-%d'%(step*save_step,(step+1)*save_step))
+	for step in tqdm(range(n_steps//save_step)):
 		pos, _, _ = sampler.run_mcmc(pos, save_step)
 		if step > 100//save_step:
 			writer.writerows(sampler.chain[:,-10:,:].reshape(-1,n_params))
