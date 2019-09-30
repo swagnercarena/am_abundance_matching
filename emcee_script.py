@@ -82,8 +82,7 @@ like_class = AMLikelihood(lf_list,halos,af_criteria,box_size,r_p_data,mag_cuts,
 n_params = 2; n_walkers = 20;
 n_steps = 10
 pos = np.random.rand(n_params*n_walkers).reshape((n_walkers,n_params))*0.3
-sampler = emcee.EnsembleSampler(n_walkers, n_params, like_class.log_likelihood,
-	threads=n_threads)
+sampler = emcee.EnsembleSampler(n_walkers, n_params, like_class.log_likelihood)
 
 import csv   
 fields=['scatter','mu_cut']
