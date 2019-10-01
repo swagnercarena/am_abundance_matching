@@ -1,8 +1,8 @@
-#BSUB -W 600                                                                                                                                                                         
-#BSUB -n 6                                                                                                                                                                         
+#BSUB -W 1200                                                                                                                                                                         
+#BSUB -n 10                                                                                                                                                                         
 #BSUB -R "span[hosts=1]"     
-#BSUB -e ~/abundance_matching/out_files/temp.err                                                                                                                                                     
-#BSUB -o ~/abundance_matching/out_files/temp.out                                                                                                                     
+#BSUB -eo ~/abundance_matching/out_files/temp.err                                                                                                                                                     
+#BSUB -oo ~/abundance_matching/out_files/temp.out                                                                                                                     
                                                                                                                                                                                      
 source ~/.bashrc
 cd ~/abundance_matching/am_abundance_matching
