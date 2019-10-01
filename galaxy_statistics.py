@@ -2,6 +2,7 @@ from AbundanceMatching import AbundanceFunction, calc_number_densities, LF_SCATT
 import numpy as np
 from Corrfunc.theory import wp
 from matplotlib import pyplot as plt
+from scipy.spatial import cKDTree
 import matplotlib
 
 # Nice set of colors for plotting
@@ -122,8 +123,8 @@ def generate_wp(lf_list,halos,af_criteria,r_p_data,box_size,mag_cuts,pimax=40.0,
 			rbins[-1] = 2*r_p_data[-1]-rbins[-2]
 
 			# Calculate the projected correlation function
-			wp_results = wp(box_size, pimax, nthreads, rbins, x, y, z, verbose=False, 
-				output_rpavg=True)
+			wp_results = wp(box_size, pimax, nthreads, rbins, x, y, z, 
+				verbose=False, output_rpavg=True)
 
 			# Extract the results
 			wp_binned = np.zeros(len(wp_results))
@@ -183,7 +184,7 @@ class AMLikelihood(object):
 	"""
 	def __init__(self,lf_list,halos,af_criteria,box_size,r_p_data,mag_cuts,
 		wp_data_list, wp_cov_list, pimax, nthreads, deconv_repeat,
-		wp_save_path):
+		wp_save_path,n_k_tree_cut = None):
 		""" Initialize AMLikelihood object. This involves initializing an
 			AbundanceFunction object for each luminosity function.
 			Parameters:
@@ -207,6 +208,10 @@ class AMLikelihood(object):
 				deconv_repeat: The number of deconvolution steps to conduct
 				wp_save_path: A unique path to which to save the parameter
 					values and 2d projected correlation functions.
+				n_k_tree_cut: An integer for the number of halos to cut from
+					the catalog in the k nearest neighbor step. This will reduce
+					accuracy at small scales but speed up computation. If set
+					to None this step will not be done.
 			Output:
 				Initialized class
 		"""
@@ -235,6 +240,28 @@ class AMLikelihood(object):
 		self.rbins = rbins
 		self.wp_save_path = wp_save_path
 
+		# K nearest neighbors calculation for the cut. This only needs
+		# to be done once since the cut is not dependent on the AM 
+		# parameters.
+		if n_k_tree_cut is not None:
+			neigh_pos = np.transpose(np.vstack(
+				self.halos['px'],self.halos['py']))
+			# Epsilon in case some galaxies are cataloges as being at the edge
+			# of the box.
+			epsilon = 1e-12
+			# Set up the tree
+			tree = cKDTree(neigh_pos,boxsize=box_size+epsilon)
+			# Query the 2nd nearest neighbor.
+			tree.query(neigh_pos,k=2)
+			dist, locs = tree.query(neigh_pos,k=2)
+			keep = np.argsort(dist[:,1])[n_k_tree_cut:]
+			# A bool array to use for indexing
+			self.wp_keep = np.zeros(len(halos),dtype=bool)
+			self.wp_keep[keep] = True
+
+		else:
+			self.wp_keep = None
+
 	def log_likelihood(self, params, verbose=False):
 		""" Calculate the loglikelihood of the particular parameter values
 			for abundance matching given the data. Currently supports
@@ -252,6 +279,13 @@ class AMLikelihood(object):
 		# the current mass is stored as mvir_now. Need to be changed if the
 		# dictionairy changes (or made more general).
 		halos_post_cut = self.halos['mvir_now']/self.halos['mvir'] > mu_cut
+
+		# Calculate what to remove due to k_nearest_neighbors
+		if self.wp_keep:
+			wp_post_cut_keep = self.wp_keep[halos_post_cut]
+		else:
+			wp_post_cut_keep = np.ones(len(halos_post_cut),dtype=bool)
+
 		nd_halos = calc_number_densities(self.halos[self.af_criteria][
 			halos_post_cut], self.box_size)
 		# Deconvolve the scatter and generate catalogs for each mag_cut
@@ -266,12 +300,15 @@ class AMLikelihood(object):
 		wp_saved_results = []
 		for c_i in range(len(catalog_list)):
 			catalog = catalog_list[c_i]
-			sub_catalog = catalog < self.mag_cuts[c_i]
+			sub_catalog = catalog[wp_post_cut_keep] < self.mag_cuts[c_i]
 
 			# Extract positions of halos in our catalog
-			x = self.halos['px'][halos_post_cut]; x=x[sub_catalog]
-			y = self.halos['py'][halos_post_cut]; y=y[sub_catalog]
-			z = self.halos['pz'][halos_post_cut]; z=z[sub_catalog]
+			x = self.halos['px'][halos_post_cut]; x[wp_post_cut_keep]
+			x=x[sub_catalog]
+			y = self.halos['py'][halos_post_cut]; y[wp_post_cut_keep]
+			y=y[sub_catalog]
+			z = self.halos['pz'][halos_post_cut]; z[wp_post_cut_keep]
+			z=z[sub_catalog]
 
 			# Get the wp for the catalog
 			wp_results = wp(self.box_size, self.pimax, self.nthreads, 
