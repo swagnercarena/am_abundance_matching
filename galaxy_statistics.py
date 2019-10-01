@@ -257,9 +257,10 @@ class AMLikelihood(object):
 		# Deconvolve the scatter and generate catalogs for each mag_cut
 		catalog_list = []
 		for af in self.af_list:
+			print(self.deconv_repeat)
 			af.deconvolute(scatter*LF_SCATTER_MULT,self.deconv_repeat)
 			catalog_list.append(af.match(nd_halos,scatter*LF_SCATTER_MULT,
-				do_rematch=False))
+				do_rematch=True))
 
 		log_like = 0
 		wp_saved_results = []
