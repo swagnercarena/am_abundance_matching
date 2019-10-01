@@ -217,7 +217,7 @@ class AMLikelihood(object):
 		"""
 		# Save dictionairy parameter along with box size object
 		# pre-sort halos to speed up computations
-		self.halos = halos[np.argsot(halos[af_criteria])]
+		self.halos = halos[np.argsort(halos[af_criteria])]
 		self.af_criteria = af_criteria
 		self.box_size = box_size
 		self.r_p_data = r_p_data
