@@ -3,7 +3,7 @@ import numpy as np
 from Corrfunc.theory import wp
 from matplotlib import pyplot as plt
 from scipy.spatial import cKDTree
-import matplotlib, time
+import matplotlib
 
 # Nice set of colors for plotting
 custom_blues = ["#66CCFF", "#33BBFF", "#00AAFF", "#0088CC", "#006699", "#004466"]
@@ -251,12 +251,9 @@ class AMLikelihood(object):
 			# of the box.
 			epsilon = 1e-12
 			# Set up the tree
-			print('setting up tree')
 			tree = cKDTree(neigh_pos,boxsize=box_size+epsilon)
 			# Query the 2nd nearest neighbor.
-			print('query time')
 			dist, locs = tree.query(neigh_pos,k=2)
-			print('what to keep')
 			keep = np.argsort(dist[:,1])[n_k_tree_cut:]
 			# A bool array to use for indexing
 			self.wp_keep = np.zeros(len(halos),dtype=bool)
@@ -289,20 +286,14 @@ class AMLikelihood(object):
 		else:
 			wp_post_cut_keep = np.ones(np.sum(halos_post_cut),dtype=bool)
 
-		start = time.time()
 		nd_halos = calc_number_densities(self.halos[self.af_criteria][
 			halos_post_cut], self.box_size)
-		print('nd_halos',time.time()-start)
 		# Deconvolve the scatter and generate catalogs for each mag_cut
 		catalog_list = []
 		for af in self.af_list:
-			start = time.time()
 			af.deconvolute(scatter*LF_SCATTER_MULT,self.deconv_repeat)
-			print('deconv',time.time()-start)
-			start = time.time()
 			catalog_list.append(af.match(nd_halos,scatter*LF_SCATTER_MULT,
 				do_rematch=False))
-			print('catalog',time.time()-start)
 
 		log_like = 0
 		wp_saved_results = []
@@ -319,11 +310,9 @@ class AMLikelihood(object):
 			z=z[sub_catalog]
 
 			# Get the wp for the catalog
-			start = time.time()
 			wp_results = wp(self.box_size, self.pimax, self.nthreads, 
 				self.rbins, x, y, z, verbose=verbose, 
 				output_rpavg=True)
-			print('wp_results',time.time()-start)
 			wp_binned = np.zeros(len(wp_results))
 			for i in range(len(wp_results)):
 			    wp_binned[i] = wp_results[i][3]
@@ -334,12 +323,10 @@ class AMLikelihood(object):
 				self.wp_cov_list[c_i])),dif_vector)
 
 		wp_saved_results = np.array(wp_saved_results)
-		start = time.time()
 		np.savetxt(self.wp_save_path+'_%d%d_wp.txt'%(scatter*1e6,mu_cut*1e6),
 			wp_saved_results)
 		np.savetxt(self.wp_save_path+'_%d%d_p.txt'%(scatter*1e6,mu_cut*1e6),
 			params)
-		print('saving',time.time()-start)
 
 		return log_like
 
