@@ -244,16 +244,18 @@ class AMLikelihood(object):
 		# to be done once since the cut is not dependent on the AM 
 		# parameters.
 		if n_k_tree_cut is not None:
-			neigh_pos = np.transpose(np.vstack(
-				self.halos['px'],self.halos['py']))
+			neigh_pos = np.transpose(np.vstack([
+				self.halos['px'],self.halos['py']]))
 			# Epsilon in case some galaxies are cataloges as being at the edge
 			# of the box.
 			epsilon = 1e-12
 			# Set up the tree
+			print('setting up tree')
 			tree = cKDTree(neigh_pos,boxsize=box_size+epsilon)
 			# Query the 2nd nearest neighbor.
-			tree.query(neigh_pos,k=2)
+			print('query time')
 			dist, locs = tree.query(neigh_pos,k=2)
+			print('what to keep')
 			keep = np.argsort(dist[:,1])[n_k_tree_cut:]
 			# A bool array to use for indexing
 			self.wp_keep = np.zeros(len(halos),dtype=bool)
@@ -281,10 +283,10 @@ class AMLikelihood(object):
 		halos_post_cut = self.halos['mvir_now']/self.halos['mvir'] > mu_cut
 
 		# Calculate what to remove due to k_nearest_neighbors
-		if self.wp_keep:
+		if self.wp_keep is not None:
 			wp_post_cut_keep = self.wp_keep[halos_post_cut]
 		else:
-			wp_post_cut_keep = np.ones(len(halos_post_cut),dtype=bool)
+			wp_post_cut_keep = np.ones(np.sum(halos_post_cut),dtype=bool)
 
 		nd_halos = calc_number_densities(self.halos[self.af_criteria][
 			halos_post_cut], self.box_size)
@@ -293,7 +295,7 @@ class AMLikelihood(object):
 		for af in self.af_list:
 			af.deconvolute(scatter*LF_SCATTER_MULT,self.deconv_repeat)
 			catalog_list.append(af.match(nd_halos,scatter*LF_SCATTER_MULT,
-				do_rematch=True))
+				do_rematch=False))
 
 		log_like = 0
 		wp_saved_results = []
@@ -302,11 +304,11 @@ class AMLikelihood(object):
 			sub_catalog = catalog[wp_post_cut_keep] < self.mag_cuts[c_i]
 
 			# Extract positions of halos in our catalog
-			x = self.halos['px'][halos_post_cut]; x[wp_post_cut_keep]
+			x = self.halos['px'][halos_post_cut]; x=x[wp_post_cut_keep]
 			x=x[sub_catalog]
-			y = self.halos['py'][halos_post_cut]; y[wp_post_cut_keep]
+			y = self.halos['py'][halos_post_cut]; y=y[wp_post_cut_keep]
 			y=y[sub_catalog]
-			z = self.halos['pz'][halos_post_cut]; z[wp_post_cut_keep]
+			z = self.halos['pz'][halos_post_cut]; z=z[wp_post_cut_keep]
 			z=z[sub_catalog]
 
 			# Get the wp for the catalog
