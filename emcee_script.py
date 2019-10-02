@@ -106,7 +106,8 @@ print(pos)
 
 with open(csv_path, 'a',1) as f:
 	writer = csv.writer(f)
-	writer.writerow(fields)
+	if not exists(csv_path):
+		writer.writerow(fields)
 	save_step = 1
 	for step in tqdm(range(n_steps//save_step+1)):
 		pos, _, _ = sampler.run_mcmc(pos, save_step)
