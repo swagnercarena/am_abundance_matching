@@ -3,7 +3,7 @@ import numpy as np
 from Corrfunc.theory import wp
 from matplotlib import pyplot as plt
 from scipy.spatial import cKDTree
-import matplotlib
+import matplotlib, math
 
 # Nice set of colors for plotting
 custom_blues = ["#66CCFF", "#33BBFF", "#00AAFF", "#0088CC", "#006699", "#004466"]
@@ -321,6 +321,9 @@ class AMLikelihood(object):
 			dif_vector = wp_binned - self.wp_data_list[c_i]
 			log_like += - 0.5*np.dot(np.dot(dif_vector,np.linalg.inv(
 				self.wp_cov_list[c_i])),dif_vector)
+
+		if math.isnan(log_like):
+			return -np.inf
 
 		wp_saved_results = np.array(wp_saved_results)
 		np.savetxt(self.wp_save_path+'_%d%d_wp.txt'%(scatter*1e6,mu_cut*1e6),
