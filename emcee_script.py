@@ -71,7 +71,7 @@ halos = np.array(fits.open(halo_path + 'hlist_1.00000.list.fits')[1].data)
 r_p_data = wp_20[:,0]
 wp_data_list = [wp_21[:,0],wp_20[:,0]]
 wp_cov_list = [wp_21_cov,wp_20_cov]
-nthreads = 16
+nthreads = 1
 
 wp_save_path = '/u/ki/swagnerc/abundance_matching/wp_results/wp'
 
@@ -89,8 +89,10 @@ like_class.wp_save_path = wp_save_path
 
 n_params = 2; n_walkers = 10;
 n_steps = 1000
+nthreads = 16
 pos = np.random.rand(n_params*n_walkers).reshape((n_walkers,n_params))*0.3
-sampler = emcee.EnsembleSampler(n_walkers, n_params, like_class.log_likelihood)
+sampler = emcee.EnsembleSampler(n_walkers, n_params, like_class.log_likelihood,
+	threads = nthreads)
 
 import csv   
 fields=['scatter','mu_cut']
