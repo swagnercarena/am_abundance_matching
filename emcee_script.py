@@ -1,5 +1,6 @@
 from AbundanceMatching import *
-import emcee
+import emcee, pandas
+from os.path import exists
 import numpy as np
 import Corrfunc
 from Corrfunc.theory import wp
@@ -89,13 +90,18 @@ sampler = emcee.EnsembleSampler(n_walkers, n_params, like_class.log_likelihood,
 import csv   
 fields=['scatter','mu_cut']
 csv_path = '/u/ki/swagnerc/abundance_matching/wp_results/mc_chains.csv'
-with open(csv_path, 'w') as f:
+if exists(csv_path):
+	# Load up most recent set of positions
+	frame = pandas.read_csv(csv_path)
+	pos = frame.values[-6:]
+
+with open(csv_path, 'a') as f:
 	writer = csv.writer(f)
 	writer.writerow(fields)
-	save_step = 2
+	save_step = 1
 	for step in tqdm(range(n_steps//save_step+1)):
 		pos, _, _ = sampler.run_mcmc(pos, save_step)
-		writer.writerows(sampler.chain[:,-10:,:].reshape(-1,n_params))
+		writer.writerows(sampler.chain[:,-save_step:,:].reshape(-1,n_params))
 
 
 
