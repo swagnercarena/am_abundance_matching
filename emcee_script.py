@@ -1,5 +1,5 @@
 from AbundanceMatching import *
-import emcee, pandas
+import emcee, pandas, time
 from os.path import exists
 import numpy as np
 import Corrfunc
@@ -80,6 +80,13 @@ af_criteria = 'vmax'
 like_class = AMLikelihood(lf_list,halos,af_criteria,box_size,r_p_data,mag_cuts,
 	wp_data_list,wp_cov_list,pimax,nthreads,deconv_repeat,wp_save_path)
 
+# Test speed of a single function call
+like_class.wp_save_path = '/u/ki/swagnerc/abundance_matching/wp_results/timing'
+start = time.time()
+like_class.log_likelihood([0.1,0.1])
+print('One evaluation takes %.2f seconds'%(time.time()-start))
+like_class.wp_save_path = wp_save_path
+
 n_params = 2; n_walkers = 10;
 n_steps = 1000
 pos = np.random.rand(n_params*n_walkers).reshape((n_walkers,n_params))*0.3
@@ -91,7 +98,7 @@ csv_path = '/u/ki/swagnerc/abundance_matching/wp_results/mc_chains.csv'
 if exists(csv_path):
 	# Load up most recent set of positions
 	frame = pandas.read_csv(csv_path)
-	pos = frame.values[-6:]
+	pos = frame.values[-n_walkers:]
 
 with open(csv_path, 'a',1) as f:
 	writer = csv.writer(f)
