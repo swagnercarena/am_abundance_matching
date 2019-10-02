@@ -63,15 +63,15 @@ pimax = 40.0
 deconv_repeat = 200
 mag_cuts=[-21.0,-20.0,-18.0]
 # Use lf_20 twice since we don't have an lf_21
-lf_list = [lf_20,lf_20,lf_18]
+lf_list = [lf_20,lf_20]
 
 # Halos from n body sim
 halo_path = '/nfs/slac/des/fs1/g/sims/jderose/BCCSims/c400-2048/'
 halos = np.array(fits.open(halo_path + 'hlist_1.00000.list.fits')[1].data)
 r_p_data = wp_20[:,0]
-wp_data_list = [wp_21[:,0],wp_20[:,0],wp_18[:,0]]
-wp_cov_list = [wp_21_cov,wp_20_cov,wp_18_cov]
-nthreads = 1
+wp_data_list = [wp_21[:,0],wp_20[:,0]]
+wp_cov_list = [wp_21_cov,wp_20_cov]
+nthreads = 16
 
 wp_save_path = '/u/ki/swagnerc/abundance_matching/wp_results/wp'
 
@@ -99,6 +99,8 @@ if exists(csv_path):
 	# Load up most recent set of positions
 	frame = pandas.read_csv(csv_path)
 	pos = frame.values[-n_walkers:]
+
+print(pos)
 
 with open(csv_path, 'a',1) as f:
 	writer = csv.writer(f)
