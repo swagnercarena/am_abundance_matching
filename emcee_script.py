@@ -95,15 +95,13 @@ if exists(csv_path):
 	frame = pandas.read_csv(csv_path)
 	pos = frame.values[-6:]
 
-with open(csv_path, 'a') as f:
+with open(csv_path, 'a',1) as f:
 	writer = csv.writer(f)
 	writer.writerow(fields)
 	save_step = 1
 	for step in tqdm(range(n_steps//save_step+1)):
 		pos, _, _ = sampler.run_mcmc(pos, save_step)
 		writer.writerows(sampler.chain[:,-save_step:,:].reshape(-1,n_params))
-		# Flush because each step takes so long
-		f.flush()
 
 
 
