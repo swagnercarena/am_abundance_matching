@@ -102,6 +102,8 @@ with open(csv_path, 'a') as f:
 	for step in tqdm(range(n_steps//save_step+1)):
 		pos, _, _ = sampler.run_mcmc(pos, save_step)
 		writer.writerows(sampler.chain[:,-save_step:,:].reshape(-1,n_params))
+		# Flush because each step takes so long
+		f.flush()
 
 
 
