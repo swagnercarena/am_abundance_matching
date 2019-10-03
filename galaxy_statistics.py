@@ -275,12 +275,12 @@ class AMLikelihood(object):
 		"""
 		# emcee tried the same parameters multiple times
 		if tuple(params) in self.ll_dict:
-			return self.ll_dict(tuple(params))
+			return self.ll_dict[tuple(params)]
 
 		scatter = params[0]
 		mu_cut  = params[1]
 		if scatter < 0.0 or mu_cut < 0.0:
-			self.ll_dict(tuple(params)) = -np.inf
+			self.ll_dict[tuple(params)] = -np.inf
 			return -np.inf
 		# We assume here that the maximum mass is stored as mvir and 
 		# the current mass is stored as mvir_now. Need to be changed if the
@@ -330,7 +330,7 @@ class AMLikelihood(object):
 				self.wp_cov_list[c_i])),dif_vector)
 
 		if math.isnan(log_like):
-			self.ll_dict(tuple(params)) = -np.inf
+			self.ll_dict[tuple(params)] = -np.inf
 			return -np.inf
 
 		wp_saved_results = np.array(wp_saved_results)
@@ -339,7 +339,7 @@ class AMLikelihood(object):
 		np.savetxt(self.wp_save_path+'_%d%d_p.txt'%(scatter*1e6,mu_cut*1e6),
 			params)
 
-		self.ll_dict(tuple(params)) = log_like
+		self.ll_dict[tuple(params)] = log_like
 
 		return log_like
 
