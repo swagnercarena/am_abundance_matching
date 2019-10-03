@@ -101,15 +101,12 @@ if exists(csv_path):
 	pos = frame.values[-n_walkers:]
 
 print(pos)
-
-with Pool() as pool:
-	sampler = emcee.EnsembleSampler(n_walkers, n_params, 
-		like_class.log_likelihood,pool=pool)
-	with open(csv_path, 'a',1) as f:
-		writer = csv.writer(f)
-		if not exists(csv_path):
-			writer.writerow(fields)
-		save_step = 1
-		for step in tqdm(range(n_steps//save_step+1)):
-			pos, _, _ = sampler.run_mcmc(pos, save_step)
-			writer.writerows(sampler.chain[:,-save_step:,:].reshape(-1,n_params))
+sampler = emcee.EnsembleSampler(n_walkers, n_params, like_class.log_likelihood)
+with open(csv_path, 'a',1) as f:
+	writer = csv.writer(f)
+	if not exists(csv_path):
+		writer.writerow(fields)
+	save_step = 1
+	for step in tqdm(range(n_steps//save_step+1)):
+		pos, _, _ = sampler.run_mcmc(pos, save_step)
+		writer.writerows(sampler.chain[:,-save_step:,:].reshape(-1,n_params))
