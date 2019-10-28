@@ -341,7 +341,7 @@ class AMLikelihood(object):
 
 		self.ll_dict[tuple(params)] = log_like
 
-		return log_like
+		return log_like,wp_saved_results
 
 
 
