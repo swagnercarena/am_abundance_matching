@@ -265,24 +265,20 @@ class AMLikelihood(object):
 
 		self.ll_dict = {}
 
-	def log_likelihood(self, params, verbose=False):
-		""" Calculate the loglikelihood of the particular parameter values
-			for abundance matching given the data. Currently supports
-			scatter and mu_cut.
+	def compute_wprp(self,params,ret_log_likelihood=False, verbose=False):
+		""" Calculate the wprp (and loglikelihood) for the specific parameter 
+			configuration that was passed in.
 			Parameters:
-				params: A vector containing [scatter,mu_cut] to be tested.
-			Returns:
-				The log likelihood.
+				params: A vector containing [scatter,mu_cut] to be tested. Both
+					parameters are assumed to be in log space.
+				ret_log_likelihood: A boolean specifying if the log likelihood
+					should also be returned.
+				verbose: Whether or not to print wprp calcualtion outputs.
 		"""
-		# emcee tried the same parameters multiple times
-		if tuple(params) in self.ll_dict:
-			return self.ll_dict[tuple(params)]
+		# Load the parameters
+		scatter = np.exp(params[0])
+		mu_cut  = np.exp(params[1])
 
-		scatter = params[0]
-		mu_cut  = params[1]
-		if scatter < 0.0 or mu_cut < 0.0:
-			self.ll_dict[tuple(params)] = -np.inf
-			return -np.inf
 		# We assume here that the maximum mass is stored as mvir and 
 		# the current mass is stored as mvir_now. Need to be changed if the
 		# dictionairy changes (or made more general).
@@ -303,7 +299,8 @@ class AMLikelihood(object):
 			catalog_list.append(af.match(nd_halos,scatter*LF_SCATTER_MULT,
 				do_rematch=False))
 
-		log_like = 0
+		if ret_log_likelihood:
+			log_like = 0
 		wp_saved_results = []
 		for c_i in range(len(catalog_list)):
 			catalog = catalog_list[c_i]
@@ -326,21 +323,57 @@ class AMLikelihood(object):
 			    wp_binned[i] = wp_results[i][3]
 			wp_saved_results.append(wp_binned)
 
-			dif_vector = wp_binned - self.wp_data_list[c_i]
-			log_like += - 0.5*np.dot(np.dot(dif_vector,np.linalg.inv(
-				self.wp_cov_list[c_i])),dif_vector)
+			if ret_log_likelihood:
+				dif_vector = wp_binned - self.wp_data_list[c_i]
+				log_like += - 0.5*np.dot(np.dot(dif_vector,np.linalg.inv(
+					self.wp_cov_list[c_i])),dif_vector)
 
-		if math.isnan(log_like):
-			self.ll_dict[tuple(params)] = -np.inf
-			return -np.inf
+		if ret_log_likelihood and math.isnan(log_like):
+			log_like = -np.inf
 
 		wp_saved_results = np.array(wp_saved_results)
+
+		# Return the log likelihood if requested 
+		if ret_log_likelihood:
+			return wp_saved_results, log_like
+
+		return wp_saved_results
+		
+		
+
+	def log_likelihood(self, params, verbose=False):
+		""" Calculate the loglikelihood of the particular parameter values
+			for abundance matching given the data. Currently supports
+			scatter and mu_cut.
+			Parameters:
+				params: A vector containing [scatter,mu_cut] to be tested. Both
+					parameters are assumed to be in log space.
+			Returns:
+				The log likelihood.
+			Notes:
+				Will save values to a dictionary object to not repeat 
+					computation
+		"""
+		# emcee tried the same parameters multiple times
+		if tuple(params) in self.ll_dict:
+			return self.ll_dict[tuple(params)]
+
+		wp_saved_results, log_like = self.compute_wprp(params,
+			ret_log_likelihood=True,verbose=verbose)
+
+		self.ll_dict[tuple(params)] = log_like
+
+		# Do not save corrputed outputs.
+		if log_like == -np.inf:
+			return log_like
+
+		# Get parameters to write files
+		scatter = np.exp(params[0])
+		mu_cut  = np.exp(params[1])
 		np.savetxt(self.wp_save_path+'_%d%d_wp.txt'%(scatter*1e6,mu_cut*1e6),
 			wp_saved_results)
 		np.savetxt(self.wp_save_path+'_%d%d_p.txt'%(scatter*1e6,mu_cut*1e6),
 			params)
-
-		self.ll_dict[tuple(params)] = log_like
 
 		return log_like
 
