@@ -2,7 +2,6 @@ from AbundanceMatching import AbundanceFunction, calc_number_densities, LF_SCATT
 import numpy as np
 from Corrfunc.theory import wp
 from matplotlib import pyplot as plt
-from scipy.spatial import cKDTree
 import matplotlib, math
 
 # Nice set of colors for plotting
@@ -212,7 +211,7 @@ class AMLikelihood(object):
 					the catalog in the k nearest neighbor step. This will reduce
 					accuracy at small scales but speed up computation. If set
 					to None this step will not be done.
-			Output:
+			Returns:
 				Initialized class
 		"""
 		# Save dictionairy parameter along with box size object
@@ -244,23 +243,25 @@ class AMLikelihood(object):
 		# K nearest neighbors calculation for the cut. This only needs
 		# to be done once since the cut is not dependent on the AM 
 		# parameters.
-		if n_k_tree_cut is not None:
-			neigh_pos = np.transpose(np.vstack([
-				self.halos['px'],self.halos['py']]))
-			# Epsilon in case some galaxies are cataloges as being at the edge
-			# of the box.
-			epsilon = 1e-12
-			# Set up the tree
-			tree = cKDTree(neigh_pos,boxsize=box_size+epsilon)
-			# Query the 2nd nearest neighbor.
-			dist, locs = tree.query(neigh_pos,k=2)
-			keep = np.argsort(dist[:,1])[n_k_tree_cut:]
-			# A bool array to use for indexing
-			self.wp_keep = np.zeros(len(halos),dtype=bool)
-			self.wp_keep[keep] = True
+		# This code does not work! I need to reimplement this with weighting
+		# and a mapping from original halos to the reduced catalog.
+		# if n_k_tree_cut is not None:
+		# 	neigh_pos = np.transpose(np.vstack([
+		# 		self.halos['px'],self.halos['py']]))
+		# 	# Epsilon in case some galaxies are cataloges as being at the edge
+		# 	# of the box.
+		# 	epsilon = 1e-12
+		# 	# Set up the tree
+		# 	tree = cKDTree(neigh_pos,boxsize=box_size+epsilon)
+		# 	# Query the 2nd nearest neighbor.
+		# 	dist, locs = tree.query(neigh_pos,k=2)
+		# 	keep = np.argsort(dist[:,1])[n_k_tree_cut:]
+		# 	# A bool array to use for indexing
+		# 	self.wp_keep = np.zeros(len(halos),dtype=bool)
+		# 	self.wp_keep[keep] = True
 
-		else:
-			self.wp_keep = None
+		# else:
+		self.wp_keep = None
 
 		self.ll_dict = {}
 
@@ -270,7 +271,7 @@ class AMLikelihood(object):
 			scatter and mu_cut.
 			Parameters:
 				params: A vector containing [scatter,mu_cut] to be tested.
-			Output:
+			Returns:
 				The log likelihood.
 		"""
 		# emcee tried the same parameters multiple times
