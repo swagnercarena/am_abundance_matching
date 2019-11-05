@@ -18,7 +18,7 @@ def main():
 	n_wp_samps = int(args.n_wp_samps)
 
 	# These are set by hand in the config file for now. Sorry!
-	params_min = [0.0001,0.0001]
+	params_min = [0.001,0.001]
 	params_max = [0.35,0.35]
 
 	# Load all the data
