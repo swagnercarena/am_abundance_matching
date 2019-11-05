@@ -70,10 +70,12 @@ def main():
 	wp_data_list = [wp_21[:,1],wp_20[:,1]]
 	wp_cov_list = [wp_21_cov,wp_20_cov]
 	wp_save_path = '/u/ki/swagnerc/abundance_matching/wp_results/emu_test'
+	print('Creating likelihood class to compute wprp')
 	like_class = AMLikelihood(lf_list,halos,'vmax',box_size,r_p_data,mag_cuts,
 		wp_data_list,wp_cov_list,pimax,nthreads,deconv_repeat,wp_save_path)
 
 
+	print('Generating Dictionary')
 	wp_train_dict = emulator_tools.generate_lhc(like_class,
 		n_points,params_min,params_max,n_wp_samps)
 	np.save(args.dict_path,wp_train_dict)
