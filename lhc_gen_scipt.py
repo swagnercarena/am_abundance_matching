@@ -17,6 +17,8 @@ def main():
 		type=float)
 	parser.add_argument('dict_path',help='The path to save the dictionary '+
 		'to',type=str)
+	parser.add_argument('random_seed',help='A random seed for numpy',
+		type=int, default=1234)
 	parser.add_argument('lhc_divisions',help='If part of multiple parallel ' + 
 		'calls, the number of pieces those calls divide the lhc into',
 		type=int, default=0)
@@ -28,6 +30,7 @@ def main():
 	n_wp_samps = args.n_wp_samps
 	p_min = args.p_min
 	p_max = args.p_max
+	random_seed = args.random_seed
 	lhc_divisions = args.lhc_divisions
 	lhc_div_index = args.lhc_div_index
 
@@ -90,8 +93,8 @@ def main():
 
 
 	print('Generating Dictionary')
-	wp_train_dict = emulator_tools.generate_lhc(like_class,
-		n_points,params_min,params_max,n_wp_samps,lhc_divisions,lhc_div_index)
+	wp_train_dict = emulator_tools.generate_lhc(like_class,n_points,params_min,
+		params_max,n_wp_samps,random_seed,lhc_divisions,lhc_div_index)
 	np.save(args.dict_path,wp_train_dict)
 
 if __name__ == '__main__':
