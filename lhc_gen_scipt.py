@@ -10,16 +10,20 @@ def main():
 	parser.add_argument('n_points',help='The number of lhc points to make')
 	parser.add_argument('n_wp_samps',help='The number of wprp samples to use '+
 		'to estimate the variance in wprp calculation.')
+	parser.add_argument('p_min',help='The minimum lhc value of the parameters')
+	parser.add_argument('p_max',help='The maximum lhc value of the parameters')
 	parser.add_argument('dict_path',help='The path to save the dictionary '+
 		'to')
 	args = parser.parse_args()
 
 	n_points = int(args.n_points)
 	n_wp_samps = int(args.n_wp_samps)
+	p_min = float(args.p_min)
+	p_max = float(args.p_max)
 
 	# These are set by hand in the config file for now. Sorry!
-	params_min = [0.001,0.001]
-	params_max = [0.35,0.35]
+	params_min = [p_min,p_min]
+	params_max = [p_max,p_max]
 
 	# Load all the data
 	print('Loading the data.')
