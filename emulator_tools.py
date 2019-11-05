@@ -46,7 +46,7 @@ def generate_lhc(like_class,n_points,param_mins,param_maxs,n_wp_samps):
 		# Sample the wprp statistics multiple times and save the samples
 		for samp_i in tqdm(range(n_wp_samps)):
 			wp_output = like_class.compute_wprp(params,verbose=False)
-			for mag_i in len(wp_output):
+			for mag_i in range(len(wp_output)):
 				wp_samps[samp_i,mag_i] = wp_output[mag_i]
 		# Store the mean and variance in the training dictionary.
 		wp_train_dict[tuple(params)] = {'mag_cuts': like_class.mag_cuts,
