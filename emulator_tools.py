@@ -44,7 +44,8 @@ def generate_lhc(like_class,n_points,param_mins,param_maxs,n_wp_samps,
 	lhc = np.stack(lhc).T
 
 	if lhc_divisions > 0:
-		lhc = lhc[lhc_div_index*lhc_divisions:(lhc_div_index+1)*lhc_divisions]
+		n_point_div = n_points//lhc_divisions
+		lhc = lhc[lhc_div_index*n_point_div:(lhc_div_index+1)*n_point_div]
 	
 	# Array to store samples. 2 is for the number wprp statistics.
 	wp_samps = np.zeros((n_wp_samps,len(like_class.mag_cuts),
