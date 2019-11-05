@@ -7,19 +7,29 @@ from astropy.io import fits
 def main():
 	# Get the basic arguments about what kind of lhc we want to generate
 	parser = argparse.ArgumentParser()
-	parser.add_argument('n_points',help='The number of lhc points to make')
+	parser.add_argument('n_points',help='The number of lhc points to make',
+		type=int)
 	parser.add_argument('n_wp_samps',help='The number of wprp samples to use '+
-		'to estimate the variance in wprp calculation.')
-	parser.add_argument('p_min',help='The minimum lhc value of the parameters')
-	parser.add_argument('p_max',help='The maximum lhc value of the parameters')
+		'to estimate the variance in wprp calculation.', type=int)
+	parser.add_argument('p_min',help='The minimum lhc value of the parameters',
+		type=float)
+	parser.add_argument('p_max',help='The maximum lhc value of the parameters',
+		type=float)
 	parser.add_argument('dict_path',help='The path to save the dictionary '+
-		'to')
+		'to',type=str)
+	parser.add_argument('lhc_divisions',help='If part of multiple parallel ' + 
+		'calls, the number of pieces those calls divide the lhc into',
+		type=int, default=0)
+	parser.add_argument('lhc_div_index',help='If part of multiple parallel ' + 
+		'calls, the division corresponding to this call', type=int, default=0)
 	args = parser.parse_args()
 
-	n_points = int(args.n_points)
-	n_wp_samps = int(args.n_wp_samps)
-	p_min = float(args.p_min)
-	p_max = float(args.p_max)
+	n_points = args.n_points
+	n_wp_samps = args.n_wp_samps
+	p_min = args.p_min
+	p_max = args.p_max
+	lhc_divisions = args.lhc_divisions
+	lhc_div_index = args.lhc_div_index
 
 	# These are set by hand in the config file for now. Sorry!
 	params_min = [p_min,p_min]
@@ -81,7 +91,7 @@ def main():
 
 	print('Generating Dictionary')
 	wp_train_dict = emulator_tools.generate_lhc(like_class,
-		n_points,params_min,params_max,n_wp_samps)
+		n_points,params_min,params_max,n_wp_samps,lhc_divisions,lhc_div_index)
 	np.save(args.dict_path,wp_train_dict)
 
 if __name__ == '__main__':

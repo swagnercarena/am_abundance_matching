@@ -4,7 +4,8 @@ import numpy as np
 import scipy.optimize as op
 from tqdm import tqdm
 
-def generate_lhc(like_class,n_points,param_mins,param_maxs,n_wp_samps):
+def generate_lhc(like_class,n_points,param_mins,param_maxs,n_wp_samps,
+	random_seed=0, lhc_divisions=0, lhc_div_index=0):
 	"""
 	Generate a training dictionary based on a latin hypercube. This dictioanry
 	will take into account variance in the am process for fixed parameters.
@@ -19,11 +20,18 @@ def generate_lhc(like_class,n_points,param_mins,param_maxs,n_wp_samps):
 			in the LHC
 		n_wp_samps: The number of samples to use for each wprp to calculate
 			the mean and the variance.
+		random_seed: A random seed to initialize numpy with
+		lhc_divisions: If you're running multiple generate_lhc calls in
+			parallel, this value will tell the code how many peices the lhc
+			should be divided into
+		lhc_div_index: If running multiple calls, this value will tell the 
+			which of the divisions to use
 
 	Returns:
 		A dicitonary object for each parameter including the mean and variance
 			for each wprp.
 	"""
+	np.random.seed(random_seed)
 	# Build the numpy array that will be the latin hypercube
 	lhc = []
 	for i in range(len(param_mins)):
@@ -34,6 +42,9 @@ def generate_lhc(like_class,n_points,param_mins,param_maxs,n_wp_samps):
 		np.random.shuffle(lin_samp)
 		lhc.append(lin_samp)
 	lhc = np.stack(lhc).T
+
+	if lhc_divisions > 0:
+		lhc = lhc[lhc_div_index*lhc_divisions:(lhc_div_index+1)*lhc_divisions]
 	
 	# Array to store samples. 2 is for the number wprp statistics.
 	wp_samps = np.zeros((n_wp_samps,len(like_class.mag_cuts),
