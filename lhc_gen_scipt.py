@@ -80,3 +80,7 @@ def main():
 		n_points,params_min,params_max,n_wp_samps)
 	np.save(args.dict_path,wp_train_dict)
 
+if __name__ == '__main__':
+    main()
+    
+
