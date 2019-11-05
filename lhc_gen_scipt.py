@@ -14,8 +14,8 @@ def main():
 		'to')
 	args = parser.parse_args()
 
-	n_points = args.n_points
-	n_wp_samps = args.n_wp_samps
+	n_points = int(args.n_points)
+	n_wp_samps = int(args.n_wp_samps)
 
 	# These are set by hand in the config file for now. Sorry!
 	params_min = [0.0001,0.0001]
@@ -82,5 +82,5 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
+
 
