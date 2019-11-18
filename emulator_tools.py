@@ -113,7 +113,7 @@ def transform_in_out(wp_train_dict,rbins):
 	return am_param_train_rbins,wprp_train,wprp_err
 
 
-def initialize_emulator(am_param_train,wprp_train):
+def initialize_emulator(am_param_train,wprp_train,wprp_err):
 	"""
 	Given a set of abundance matching parameters and projectedtwo point 
 	correlation functions to use for training, build an emulator.
@@ -141,10 +141,10 @@ def initialize_emulator(am_param_train,wprp_train):
 	kernel = sf * ExpSquaredKernel(em_vec[1:n_am_params+1], 
 		ndim=n_am_params) + sx
 	emulator = george.GP(kernel, mean=np.mean(wprp_train))
-	emulator.compute(am_param_train)
+	emulator.compute(am_param_train,y_err=wprp_err)
 	return emulator
 
-def optimize_emulator(emulator,wprp_train):
+def optimize_emulator(emulator,am_param_train,wprp_train,wprp_err):
 	"""
 	Find the local minimum of the emulator hyperparameters.
 
@@ -162,6 +162,7 @@ def optimize_emulator(emulator,wprp_train):
 	def nll(vector):
 		# Update the kernel params and calculate nll
 		emulator.kernel.set_parameter_vector(vector)
+		emulator.compute(am_param_train,y_err=wprp_err)
 		ll = emulator.lnlikelihood(wprp_train, quiet=True)
 		# Deal with scipy not liking infinities as per george example
 		return -ll if np.isfinite(ll) else 1e25
@@ -170,6 +171,7 @@ def optimize_emulator(emulator,wprp_train):
 		# Again update the kernel and calculate the grad of nll with respect
 		# to the vector.
 		emulator.kernel.set_parameter_vector(vector)
+		emulator.compute(am_param_train,y_err=wprp_err)
 		return -emulator.grad_lnlikelihood(wprp_train, quiet=True)
 
 	# To start, run the standard scipy optimizer on our emulator
