@@ -377,8 +377,73 @@ class AMLikelihood(object):
 
 		return log_like
 
+class EmuLikelihood(object):
+	"""
+	A class responsible for emulator likelihood calculations for parameter 
+	fitting.
+	"""
+	def __init__(self,r_p_data,wp_data_list, wp_cov_list,emulators,
+			wprp_train):
+		""" Initialize AMLikelihood object. This involves initializing an
+			AbundanceFunction object for each luminosity function.
+			Parameters:
+				r_p_data: The positions at which to calculate the 2D correlation
+					function.
+				wp_data_list: The list of wp_data corresponding to mag cuts 
+					to be used for the likelihood function
+				wp_cov_list: The list of covariance matrices for w_p. Also
+					important for the covariance function.
+				emulators: A list containig one emulator for each magnitude
+					cut used to constrain am parameters.
+				wprp_train: A list of the training data on which to condition
+					the emulators.
+			Returns:
+				Initialized class
+		"""
+		# Save dictionairy parameter along with box size object
+		# pre-sort halos to speed up computations
+		self.r_p_data = r_p_data
+		self.wp_data_list = wp_data_list
+		self.wp_cov_list = wp_cov_list
+		self.wprp_train = wprp_train
 
+		# Generate inputs in a format that will work for the emulator.
+		self.emu_inputs = np.zeros((len(r_p_data),3))
+		self.emu_inputs[:,2] = r_p_data
+		self.emulators = emulators
 
+	def log_likehood(self,params,verbose=True):
+		""" Calculate the loglikelihood of the particular parameter values
+			for abundance matching given the data. Currently supports
+			scatter and mu_cut.
+			Parameters:
+				params: A vector containing [scatter,mu_cut] to be tested. Both
+					parameters are assumed to be in log space.
+			Returns:
+				The log likelihood.
+			Notes:
+				Will save values to a dictionary object to not repeat 
+					computation
+		"""
+
+		# Set sigma and mu_cut in the emulator inputs.
+		self.emu_inputs[:,0] = params[0]
+		self.emu_inputs[:,1] = params[1]
+
+		log_like = 0
+		for w_i in range(len(self.wp_data_list)):
+			wp_data = self.wp_data_list[w_i]
+			wp_pred, wp_cov = self.emulators[w_i].predict(self.wprp_train[w_i],
+				self.emu_inputs)
+
+			dif_vector = wp_pred - wp_data
+			log_like += - 0.5*np.dot(np.dot(dif_vector,np.linalg.inv(
+				self.wp_cov_list[w_i])),dif_vector)
+
+		if math.isnan(log_like):
+			log_like = -np.inf
+
+		return log_like
 
 
 
