@@ -412,7 +412,7 @@ class EmuLikelihood(object):
 		self.emu_inputs[:,2] = r_p_data
 		self.emulators = emulators
 
-	def log_likehood(self,params,verbose=True):
+	def log_likelihood(self,params,verbose=True):
 		""" Calculate the loglikelihood of the particular parameter values
 			for abundance matching given the data. Currently supports
 			scatter and mu_cut.
