@@ -133,4 +133,33 @@ class IntegratorTestsNFW(unittest.TestCase):
 	def test_calc_neg_grad_nfw(self):
 		# Test that calculating the nfw negative gradient returns the same
 		# results as galpy (but faster hopefully :))
-		return
+		r_scale = 2
+		rho_0 = 1e10
+		G = 6.67430e-11
+		nfw = NFWPotential(a=r_scale,amp=rho_0*G*4*np.pi*r_scale**3)
+
+		pos_nfw = np.zeros(3,dtype=np.float64)
+		pos = np.zeros(3,dtype=np.float64)
+
+		# Start just by testing a couple of different values of radius 1,2, and
+		# 3.
+		thetas = np.random.rand(10).astype(np.float64)*2*np.pi
+		rs = np.array([1,2,3],dtype=np.float64)
+		for theta in thetas:
+			for r in rs:
+				# Update the position
+				pos[0] = r*np.cos(theta)
+				pos[1] = r*np.sin(theta)
+
+				# Compare both magnitudes
+				r_force = nfw.Rforce(r,0)
+				neg_grad = integrator.calc_neg_grad_nfw(rho_0,r_scale,pos_nfw,
+					pos)
+
+				self.assertAlmostEqual(np.abs(r_force),
+					np.sqrt(np.sum(np.square(neg_grad))))
+
+				# Ensure the direction is correct
+				np.testing.assert_almost_equal(
+					neg_grad/np.sqrt(np.sum(np.square(neg_grad))),
+					-pos/r)
