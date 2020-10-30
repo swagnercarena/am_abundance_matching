@@ -140,7 +140,7 @@ class IntegratorTestsNFW(unittest.TestCase):
 		# Test that calculating the nfw negative gradient returns the same
 		# results as galpy (but faster hopefully :))
 		r_scale = 2
-		rho_0 = 1e10
+		rho_0 = 0.1
 		G = 0.8962419740798497
 		nfw = NFWPotential(a=r_scale,amp=rho_0*G*4*np.pi*r_scale**3)
 
@@ -173,7 +173,7 @@ class IntegratorTestsNFW(unittest.TestCase):
 	def test_leapfrog_int_nfw(self):
 		# Test the circular orbits and circular orbits within a moving NFW work
 		# Start with something simple like circular motion
-		rho_0 = 1e11
+		rho_0 = 0.1
 		r_scale = 1
 		G = 0.8962419740798497
 
@@ -220,7 +220,7 @@ class IntegratorTestsNFW(unittest.TestCase):
 		# outputs (which are slow but known to work).
 
 		# Set the parameters for a slightly offset circular orbit
-		rho_0 = 1e11
+		rho_0 = 0.1
 		r_scale = 1
 		G = 0.8962419740798497
 
@@ -280,7 +280,7 @@ class IntegratorTestsNFW(unittest.TestCase):
 		m_host = np.exp(4)
 		rho = 1
 		sigma = 1
-		x = 1/(np.sqrt(2)*sigma)
+		x = np.sqrt(3)/(np.sqrt(2)*sigma)
 		x_factor = (math.erf(x)-2*x/np.sqrt(np.pi)*np.exp(-x**2))
 		ln_lamba = 4
 
