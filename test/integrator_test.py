@@ -287,3 +287,71 @@ class IntegratorTestsNFW(unittest.TestCase):
 		hand_calc = -4*np.pi*G**2*m_sub/3*ln_lamba*x_factor*v/np.sqrt(3)
 		np.testing.assert_almost_equal(hand_calc,
 			integrator.calc_neg_grad_f_dyn(v,rho,m_sub,m_host,sigma))
+
+
+class IntegratorTestsFricDyn(unittest.TestCase):
+	# Test class for NFW methods.
+
+	def test_calc_mass_loss(self):
+		# Test the mass loss prescription work as intended.
+		# First we check if the object is outoing no mass loss occurs
+		pos= np.array([1,1,1],dtype=np.float64)
+		pos_nfw= np.array([-1,0,2],dtype=np.float64)
+
+		# Start with the velocity perfectly pointing out
+		vel = np.array([2,1,-1],dtype=np.float64)
+		G = 0.8962419740798497
+		m_sub = 1e2
+		m_host = 1e3
+		rho_vir = 1.6
+
+		self.assertEqual(integrator.calc_mass_loss(vel,m_sub,m_host,rho_vir,
+			pos_nfw,pos),0)
+
+		# Add some perpindicular kicks and make sure that doesn't change
+		# anything
+		perp1 = np.array([-1,1,-1],dtype=np.float64)
+		perp2 = np.cross(perp1,vel)
+		for _ in range(10):
+			kick1 = np.random.randn()
+			kick2 = np.random.randn()
+			vel += perp1*kick1 + perp2*kick2
+			self.assertEqual(integrator.calc_mass_loss(vel,m_sub,m_host,
+				rho_vir,pos_nfw,pos),0)
+
+		# Repeat the same but for ingoing
+		vel = np.array([-2,-1,1],dtype=np.float64)
+		t_dyn = 1/np.sqrt(4*np.pi*G*rho_vir/3)
+		mass_loss = -1.18*m_sub/t_dyn
+		mass_loss *= (m_sub/m_host)**(0.07)
+		self.assertAlmostEqual(integrator.calc_mass_loss(vel,m_sub,m_host,
+			rho_vir,pos_nfw,pos),mass_loss)
+
+		# Random perpindicular kicks
+		for _ in range(10):
+			kick1 = np.random.randn()
+			kick2 = np.random.randn()
+			vel += perp1*kick1 + perp2*kick2
+			self.assertEqual(integrator.calc_mass_loss(vel,m_sub,m_host,
+				rho_vir,pos_nfw,pos),mass_loss)
+
+	def test_nfw_sigma_v(self):
+		# Test the the calculation of sigma_v returns the values we expect
+
+		r_scale = 4
+		v_max = 2
+		r_values = np.linspace(0.1,r_scale,100)
+		pos_nfw = np.zeros(3,dtype=np.float64)
+
+		for r in r_values:
+			x = r/r_scale
+			pos = np.random.randn(3).astype(np.float64)
+			pos /= np.sqrt(np.sum(np.square(pos)))
+			pos *= r
+			# Be extra careful about order of operations for the test
+			sigma_v_hand_calc = v_max
+			sigma_v_hand_calc *= 1.4393
+			sigma_v_hand_calc *= x**0.354
+			sigma_v_hand_calc /= (1+1.1756*(x**0.725))
+			self.assertAlmostEqual(integrator.nfw_sigma_v(r_scale,
+				v_max,pos_nfw,pos),sigma_v_hand_calc)

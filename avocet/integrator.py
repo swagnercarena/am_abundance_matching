@@ -283,6 +283,60 @@ def calc_neg_grad_f_dyn(vel,rho,m_sub,m_host,sigma_v):
 	# Put everything together into our dynamical friction term
 	a_dyn = vel/(v_2*v_mag)
 	a_dyn *= -4*np.pi*G**2*m_sub*rho*ln_lambda
-	a_dyn *=(math.erf(x)-2*x/np.sqrt(np.pi)*np.exp(-x**2))
+	a_dyn *= (math.erf(x)-2*x/np.sqrt(np.pi)*np.exp(-x**2))
 
 	return a_dyn
+
+
+@numba.njit()
+def calc_mass_loss(vel,m_sub,m_host,rho_vir,pos_nfw,pos):
+	"""	Calculate the mass loss caused by stripping from the host halo.
+
+		Parameters:
+			vel (np.array): The 3D velocity of the substructure in question
+			m_sub (float): The mass of the substructure
+			m_host (float): The mass of the host halo
+			rho_vir (float): The density used to define the virial
+				density.
+			pos_nfw (np.array): The 3D position of the NFW
+			pos (np.array): The 3D position to calculate the gradient at
+
+		Returns:
+			(float): The derivative of the mass loss as a function of time.
+	"""
+	# First check if the subhalo is infalling
+	r = pos_nfw-pos
+	# If outoing no mass is lost
+	if np.dot(r,vel)<0:
+		return 0
+	# If infalling mass is being lost.
+	else:
+		# Calculate the dynamical time.
+		one_over_t_dyn = np.sqrt(4*np.pi*G*rho_vir/3)
+
+		# Now calculate the mass derivative
+		return -1.18*m_sub*one_over_t_dyn*(m_sub/m_host)**(0.07)
+
+
+@numba.njit()
+def nfw_sigma_v(r_scale,v_max,pos_nfw,pos):
+	"""	Get the velocity dispersion for an NFW at a given position based on
+		https://iopscience.iop.org/article/10.1086/378797/pdf.
+
+		Parameters:
+			r_scale (float): The scale radius for the NFW profile
+			v_max (np.array): The magnitude of the maximum velocity for the
+				host halo
+			pos_nfw (np.array): The 3D position of the NFW
+			pos (np.array): The 3D position to calculate the gradient at
+
+		Returns:
+			(float): The derivative of the mass loss as a function of time.
+	"""
+	# The approximate function is written as a ratio of the radius to the
+	# scale radius.
+	r = np.sqrt(np.sum(np.square(pos_nfw-pos)))
+	x = r/r_scale
+
+	# The approximate function complete with magic numbers
+	return v_max * (1.4393*x**(0.354)) / (1+1.1756*x**(0.725))
