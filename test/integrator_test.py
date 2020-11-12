@@ -184,6 +184,10 @@ class IntegratorTestsNFW(unittest.TestCase):
 		save_pos = np.zeros((num_dt+1,3))
 		save_vel = np.zeros((num_dt+1,3))
 
+		# Change the rho_0 and r_scale to a fixed array in time
+		rho_0_array = rho_0*np.ones(num_dt,dtype=np.float64)
+		r_scale_array = r_scale*np.ones(num_dt,dtype=np.float64)
+
 		r_init = 20
 		pos_init = np.array([r_init,0,0],dtype=np.float64)
 
@@ -195,8 +199,8 @@ class IntegratorTestsNFW(unittest.TestCase):
 		# Get the final completed period
 		last_period = int(int(num_dt*dt/period)*period//dt)
 
-		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0,r_scale,
-			pos_nfw_array,dt,save_pos,save_vel)
+		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0_array,
+			r_scale_array,pos_nfw_array,dt,save_pos,save_vel)
 		# Check that it returns to the original position once per period.
 		np.testing.assert_almost_equal(save_pos[0,:],save_pos[last_period,:],
 			decimal=3)
@@ -208,8 +212,8 @@ class IntegratorTestsNFW(unittest.TestCase):
 
 		pos_init = np.array([r_init,0,0],dtype=np.float64)
 		vel_init = np.array([1,v_r,0],dtype=np.float64)
-		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0,r_scale,
-			pos_nfw_array,dt,save_pos,save_vel)
+		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0_array,
+			r_scale_array,pos_nfw_array,dt,save_pos,save_vel)
 
 		np.testing.assert_almost_equal(save_pos[0,:],
 			save_pos[last_period,:]-pos_nfw_array[last_period,:],
@@ -231,6 +235,10 @@ class IntegratorTestsNFW(unittest.TestCase):
 		save_pos = np.zeros((num_dt+1,3))
 		save_vel = np.zeros((num_dt+1,3))
 
+		# Change the rho_0 and r_scale to a fixed array in time
+		rho_0_array = rho_0*np.ones(num_dt,dtype=np.float64)
+		r_scale_array = r_scale*np.ones(num_dt,dtype=np.float64)
+
 		r_init = 20
 		pos_init = np.array([r_init,0,0],dtype=np.float64)
 
@@ -240,8 +248,8 @@ class IntegratorTestsNFW(unittest.TestCase):
 		v_kick = 1e-1
 		vel_init = np.array([v_kick,v_r,0],dtype=np.float64)
 
-		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0,r_scale,
-			pos_nfw_array,dt,save_pos,save_vel)
+		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0_array,
+			r_scale_array,pos_nfw_array,dt,save_pos,save_vel)
 
 		# Compare to galpy orbits
 		o=Orbit([r_init,v_kick,v_r,0,0,0])
@@ -257,8 +265,8 @@ class IntegratorTestsNFW(unittest.TestCase):
 		v_kick = 5e-1
 		pos_init = np.array([r_init,0,0],dtype=np.float64)
 		vel_init = np.array([v_kick,v_r,v_kick],dtype=np.float64)
-		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0,r_scale,
-			pos_nfw_array,dt,save_pos,save_vel)
+		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0_array,
+			r_scale_array,pos_nfw_array,dt,save_pos,save_vel)
 
 		# Do the same for galpy
 		o=Orbit([r_init,v_kick,v_r,0,v_kick,0])
@@ -269,6 +277,10 @@ class IntegratorTestsNFW(unittest.TestCase):
 		np.testing.assert_almost_equal(o.x(ts),save_pos[:,0])
 		np.testing.assert_almost_equal(o.y(ts),save_pos[:,1])
 		np.testing.assert_almost_equal(o.z(ts),save_pos[:,2])
+
+
+class IntegratorTestsFricDyn(unittest.TestCase):
+	# Test class for NFW methods.
 
 	def test_calc_neg_grad_f_dyn(self):
 		# Here we can't compare to galpy since their implementation of lambda
@@ -287,10 +299,6 @@ class IntegratorTestsNFW(unittest.TestCase):
 		hand_calc = -4*np.pi*G**2*m_sub/3*ln_lamba*x_factor*v/np.sqrt(3)
 		np.testing.assert_almost_equal(hand_calc,
 			integrator.calc_neg_grad_f_dyn(v,rho,m_sub,m_host,sigma))
-
-
-class IntegratorTestsFricDyn(unittest.TestCase):
-	# Test class for NFW methods.
 
 	def test_calc_mass_loss(self):
 		# Test the mass loss prescription work as intended.
@@ -355,3 +363,96 @@ class IntegratorTestsFricDyn(unittest.TestCase):
 			sigma_v_hand_calc /= (1+1.1756*(x**0.725))
 			self.assertAlmostEqual(integrator.nfw_sigma_v(r_scale,
 				v_max,pos_nfw,pos),sigma_v_hand_calc)
+
+	def test_nfw_rho(self):
+		# Test the the calculation of rho for an NFW returns the values we
+		# expect
+		r_scale = 4
+		rho_0 = 20
+		r_values = np.linspace(0.1,r_scale,100)
+		pos_nfw = np.zeros(3,dtype=np.float64)
+
+		for r in r_values:
+			pos = np.random.randn(3).astype(np.float64)
+			pos /= np.sqrt(np.sum(np.square(pos)))
+			pos *= r
+			# Be extra careful about order of operations for the test
+			rho_hand_calc = rho_0
+			rho_hand_calc /= r/r_scale
+			rho_hand_calc /= (1+r/r_scale)**2
+			self.assertAlmostEqual(integrator.nfw_rho(r_scale,
+				rho_0,pos_nfw,pos),rho_hand_calc)
+
+	def test_leapfrog_int_nfw_f_dyn(self):
+		# There is no code for us to compare to here, so we can instead to some
+		# sanity checks on limiting cases. First, let's input some
+		# configurations that are equivalent to just an NFW and make sure
+		# that's the result we get.
+
+		# Set the problem up for circular motion.
+		rho_0 = 1
+		r_scale = 1
+		G = 0.8962419740798497
+		dt = 0.01
+		num_dt = int(1e4)
+
+		pos_nfw_array = np.tile(np.zeros(3,dtype=np.float64),(num_dt,1))
+		save_pos_dyn_f = np.zeros((num_dt+1,3))
+		save_vel_dyn_f = np.zeros((num_dt+1,3))
+		save_pos = np.zeros((num_dt+1,3))
+		save_vel = np.zeros((num_dt+1,3))
+		rho_0_array = rho_0*np.ones(num_dt,dtype=np.float64)
+		r_scale_array = r_scale*np.ones(num_dt,dtype=np.float64)
+		r_init = 2
+		pos_init = np.array([r_init,0,0],dtype=np.float64)
+		M_r = 4*np.pi*rho_0*r_scale**3*(np.log((r_scale+r_init)/r_scale)+
+			r_scale/(r_scale+r_init) - 1)
+		v_r = np.sqrt(G*M_r/r_init)
+		vel_init = np.array([0,v_r,0],dtype=np.float64)
+		m_nfw_array = M_r*np.ones(num_dt,dtype=np.float64)
+		v_max_nfw_array = np.ones(num_dt,dtype=np.float64)*np.sqrt(
+			G*M_r/r_scale)
+		rho_vir = 0.001
+
+		# These are the two parameters we'll play with. First we'll give the
+		# subhalo no mass. In that regime there should be no dynamical
+		# friction
+		m_sub = M_r/1e20
+		v_max_nfw_array *= 1
+
+		integrator.leapfrog_int_nfw_f_dyn(pos_init,vel_init,m_sub,rho_0_array,
+			r_scale_array,pos_nfw_array,m_nfw_array,v_max_nfw_array,
+			rho_vir,dt,save_pos_dyn_f,save_vel_dyn_f)
+
+		# Reset the initial velocity and position
+		pos_init = np.array([r_init,0,0],dtype=np.float64)
+		vel_init = np.array([0,v_r,0],dtype=np.float64)
+		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0_array,
+			r_scale_array,pos_nfw_array,dt,save_pos,save_vel)
+		np.testing.assert_almost_equal(save_pos,save_pos_dyn_f)
+
+		# Now increase the subhalo mass but increase the velocity dispersion
+		# of the NFW (and therefore make dynamical friction almost impossible)
+		m_sub = M_r/1e2
+		v_max_nfw_array *= 1e4
+
+		pos_init = np.array([r_init,0,0],dtype=np.float64)
+		vel_init = np.array([0,v_r,0],dtype=np.float64)
+		integrator.leapfrog_int_nfw_f_dyn(pos_init,vel_init,m_sub,rho_0_array,
+			r_scale_array,pos_nfw_array,m_nfw_array,v_max_nfw_array,
+			rho_vir,dt,save_pos_dyn_f,save_vel_dyn_f)
+		np.testing.assert_almost_equal(save_pos,save_pos_dyn_f)
+
+		# Now make sure that dynamical friction behaves as we want it to.
+		v_max_nfw_array /= 1e4
+
+		pos_init = np.array([r_init,0,0],dtype=np.float64)
+		vel_init = np.array([0,v_r,0],dtype=np.float64)
+		integrator.leapfrog_int_nfw_f_dyn(pos_init,vel_init,m_sub,rho_0_array,
+			r_scale_array,pos_nfw_array,m_nfw_array,v_max_nfw_array,
+			rho_vir,dt,save_pos_dyn_f,save_vel_dyn_f)
+
+		# Make sure the radius is smaller and decreasing due to the friction
+		r_f_dyn = np.sqrt(np.sum(np.square(save_pos_dyn_f),axis=-1))
+		r_nfw = np.sqrt(np.sum(np.square(save_pos),axis=-1))
+		self.assertEqual(np.sum(r_f_dyn>r_nfw),0)

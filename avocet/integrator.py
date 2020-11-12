@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=invalid-name,mixed-indentation
 """
 Functions for integrating a subhalo within a host potential
 
@@ -19,9 +20,9 @@ TODO:
 	4) 	Discuss unit choices and purpose in an opening statement.
 """
 
+import math
 import numba
 import numpy as np
-import math
 
 # Declare some global variables (400 km^2*300 kpc/(1e13 M_sun*s^2))
 G = 0.8962419740798497
@@ -196,8 +197,8 @@ def calc_neg_grad_nfw(rho_0,r_scale,pos_nfw,pos):
 
 
 @numba.njit()
-def leapfrog_int_nfw(pos_init,vel_init,rho_0,r_scale,pos_nfw_array,dt,
-	save_pos_array,save_vel_array):
+def leapfrog_int_nfw(pos_init,vel_init,rho_0_array,r_scale_array,pos_nfw_array,
+	dt,save_pos_array,save_vel_array):
 	"""	Integrate rotation through an NFW potential
 
 		Parameters:
@@ -205,8 +206,10 @@ def leapfrog_int_nfw(pos_init,vel_init,rho_0,r_scale,pos_nfw_array,dt,
 				be modified.
 			vel_init (np.array): 3D initial velocity of the particle. Will
 				be modified.
-			rho_0 (float): The amplitude of the NFW (in unites of mass)
-			r_scale (float): The scale radius of the NFW
+			rho_0_array (np.array): A num_dt array with the amplitude of the
+				NFW (in unites of mass) at each time step.
+			r_scale_array (np.array): A num_dt array with the yhe scale radius
+				of the NFW at each time step.
 			pos_nfw_array (np.array): The num_dt*3D position of the NFW at each
 				time step. This array will be used to determine the number of
 				integration steps.
@@ -229,13 +232,15 @@ def leapfrog_int_nfw(pos_init,vel_init,rho_0,r_scale,pos_nfw_array,dt,
 		save_vel_array[ti] += vel_init
 
 		# First get the force for the particle at the current position
-		a0 += calc_neg_grad_nfw(rho_0,r_scale,pos_nfw_array[ti],pos_init)
+		a0 += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
+			pos_nfw_array[ti],pos_init)
 
 		# Do the fist integration step.
 		leapfrog_p_step(pos_init,vel_init,dt,a0)
 
 		# Calculate the force on the particle at the new position.
-		a1 += calc_neg_grad_nfw(rho_0,r_scale,pos_nfw_array[ti],pos_init)
+		a1 += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
+			pos_nfw_array[ti],pos_init)
 
 		# Do a step of leapfrog integration on this particle
 		leapfrog_v_step(vel_init,dt,a0,a1)
@@ -340,3 +345,107 @@ def nfw_sigma_v(r_scale,v_max,pos_nfw,pos):
 
 	# The approximate function complete with magic numbers
 	return v_max * (1.4393*x**(0.354)) / (1+1.1756*x**(0.725))
+
+
+@numba.njit()
+def nfw_rho(r_scale,rho_0,pos_nfw,pos):
+	""" Calculate the density of the NFW at a given position.
+
+		Parameters:
+			r_scale (float): The scale radius for the NFW profile
+			v_max (np.array): The magnitude of the maximum velocity for the
+				host halo
+			pos_nfw (np.array): The 3D position of the NFW
+			pos (np.array): The 3D position to calculate the gradient at
+
+		Returns:
+			(float): The density at position pos.
+	"""
+	# Get the radial distance in the profile
+	r = np.sqrt(np.sum(np.square(pos_nfw-pos)))
+	return rho_0/(r/r_scale*(1+r/r_scale)**2)
+
+
+@numba.njit()
+def leapfrog_int_nfw_f_dyn(pos_init,vel_init,m_sub,rho_0_array,r_scale_array,
+	pos_nfw_array,m_nfw_array,v_max_nfw_array,rho_vir,dt,save_pos_array,
+	save_vel_array):
+	"""	Integrate rotation through an NFW potential with dynamical friction
+
+		Parameters:
+			pos_init (np.array): 3D initial position of the particle. Will
+				be modified.
+			vel_init (np.array): 3D initial velocity of the particle. Will
+				be modified.
+			m_sub (float): The mass of the incoming substructure
+			rho_0_array (np.array): A num_dt array with the amplitude of the
+				NFW (in unites of mass) at each time step.
+			r_scale_array (np.array): A num_dt array with the yhe scale radius
+				of the NFW at each time step.
+			pos_nfw_array (np.array): The num_dt*3D position of the NFW at each
+				time step. This array will be used to determine the number of
+				integration steps.
+			m_nfw_array (np.array): A num_dt array with the mass of the NFW at
+				each time step.
+			v_max_nfw_array (np.array): A num_dt array with the maximum
+				velocity of the NFW at each timestep.
+			rho_vir (float): The density used to define the virial radius /
+				virial mass for the NFW.
+			dt (float): The size of a timestep
+			save_pos_array (np.array): A (num_dt+1)*N*3D array where the
+				positions will be saved.
+			save_vel_array (np.array): A (num_dt+1)*N*3D array where the
+				velocities will be saved.
+	"""
+	# Clear save arrays in case they have values
+	save_pos_array *= 0
+	save_vel_array *= 0
+	a0 = np.zeros(3,dtype=np.float64)
+	a1 = np.zeros(3,dtype=np.float64)
+	num_dt = len(pos_nfw_array)
+
+	for ti in range(num_dt):
+		# Save the pos and vel at this step
+		save_pos_array[ti] += pos_init
+		save_vel_array[ti] += vel_init
+
+		# First get the force for the particle at the current position
+		a0 += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
+			pos_nfw_array[ti],pos_init)
+		# Calculate the terms required for the dynamical friction term.
+		sigma_v = nfw_sigma_v(r_scale_array[ti],v_max_nfw_array[ti],
+			pos_nfw_array[ti],pos_init)
+		rho = nfw_rho(rho_0_array[ti],r_scale_array[ti],pos_nfw_array[ti],
+			pos_init)
+		a0 += calc_neg_grad_f_dyn(vel_init,rho,m_sub,m_nfw_array[ti],sigma_v)
+
+		# Also calculate the mass loss
+		m_sub += calc_mass_loss(vel_init,m_sub,m_nfw_array[ti],
+			rho_vir,pos_nfw_array[ti],pos_init)*dt
+		# Make sure the mass loss has not sent the mass to 0. A lower limit
+		# of the mass of the sun for a subhalo is probably more than
+		# generous enough.
+		m_sub = max(m_sub,1e-13)
+
+		# Do the fist integration step.
+		leapfrog_p_step(pos_init,vel_init,dt,a0)
+
+		# Calculate the force on the particle at the new position.
+		a1 += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
+			pos_nfw_array[ti],pos_init)
+		sigma_v = nfw_sigma_v(r_scale_array[ti],v_max_nfw_array[ti],
+			pos_nfw_array[ti],pos_init)
+		rho = nfw_rho(rho_0_array[ti],r_scale_array[ti],pos_nfw_array[ti],
+			pos_init)
+		a1 += calc_neg_grad_f_dyn(vel_init,rho,m_sub,m_nfw_array[ti],sigma_v)
+
+		# Do a step of leapfrog integration on this particle
+		leapfrog_v_step(vel_init,dt,a0,a1)
+
+		# Reset the force vectors
+		a0 *= 0
+		a1 *= 0
+
+	# Save the pos and vel for the final step
+	save_pos_array[num_dt] += pos_init
+	save_vel_array[num_dt] += vel_init
