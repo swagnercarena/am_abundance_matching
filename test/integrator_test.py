@@ -18,28 +18,23 @@ class IntegratorTestsNB(unittest.TestCase):
 		# Test that the leapfrog p_step does the desired updates.
 		x0 = np.random.randn(20,3)
 		v0 = np.random.randn(20,3)
-		a0 = np.random.randn(20,3)
 		dt = 0.2
 
 		for i in range(len(x0)):
 			x_temp = np.copy(x0[i])
-			integrator.leapfrog_p_step(x0[i],v0[i],dt,a0[i])
-			np.testing.assert_almost_equal(x_temp+v0[i]*dt+0.5*a0[i]*dt**2,
-				x0[i])
+			integrator.leapfrog_p_step(x0[i],v0[i],dt)
+			np.testing.assert_almost_equal(x_temp+v0[i]*dt,x0[i])
 
 	def test_leapfrog_v_step(self):
 		# Test that the leapfrog p_step does the desired updates.
-		x0 = np.random.randn(20,3)
 		v0 = np.random.randn(20,3)
 		a0 = np.random.randn(20,3)
-		a1 = np.random.randn(20,3)
 		dt = 0.2
 
-		for i in range(len(x0)):
+		for i in range(len(v0)):
 			v_temp = np.copy(v0[i])
-			integrator.leapfrog_v_step(v0[i],dt,a0[i],a1[i])
-			np.testing.assert_almost_equal(v_temp+0.5*(a0[i]+a1[i])*dt,
-				v0[i])
+			integrator.leapfrog_v_step(v0[i],dt,a0[i])
+			np.testing.assert_almost_equal(v_temp+a0[i]*dt,v0[i])
 
 	def test_calc_neg_grad_nb(self):
 		# Test that the nbody potential code returns the expected results
@@ -136,6 +131,30 @@ class IntegratorTestsNB(unittest.TestCase):
 class IntegratorTestsNFW(unittest.TestCase):
 	# Test class for NFW methods.
 
+	def test_leapfrog_p_step_cosmo(self):
+		# Test that the leapfrog p_step cosmo does the desired updates.
+		x0 = np.random.randn(20,3)
+		v0 = np.random.randn(20,3)
+		scale = np.random.rand(20,3)
+		dt = 0.2
+
+		for i in range(len(x0)):
+			x_temp = np.copy(x0[i])
+			integrator.leapfrog_p_step_cosmo(x0[i],v0[i],dt,scale[i])
+			np.testing.assert_almost_equal(x_temp+v0[i]*dt/scale[i]**2,x0[i])
+
+	def test_leapfrog_v_step_cosmo(self):
+		# Test that the leapfrog p_step does the desired updates.
+		v0 = np.random.randn(20,3)
+		a0 = np.random.randn(20,3)
+		scale = np.random.rand(20,3)
+		dt = 0.2
+
+		for i in range(len(v0)):
+			v_temp = np.copy(v0[i])
+			integrator.leapfrog_v_step_cosmo(v0[i],dt,a0[i],scale[i])
+			np.testing.assert_almost_equal(v_temp+a0[i]*dt/scale[i],v0[i])
+
 	def test_calc_neg_grad_nfw(self):
 		# Test that calculating the nfw negative gradient returns the same
 		# results as galpy (but faster hopefully :))
@@ -229,7 +248,7 @@ class IntegratorTestsNFW(unittest.TestCase):
 		G = 0.8962419740798497
 
 		dt = 0.001
-		num_dt = int(3e4)
+		num_dt = int(5e4)
 
 		pos_nfw_array = np.tile(np.zeros(3,dtype=np.float64),(num_dt,1))
 		save_pos = np.zeros((num_dt+1,3))
@@ -277,6 +296,31 @@ class IntegratorTestsNFW(unittest.TestCase):
 		np.testing.assert_almost_equal(o.x(ts),save_pos[:,0])
 		np.testing.assert_almost_equal(o.y(ts),save_pos[:,1])
 		np.testing.assert_almost_equal(o.z(ts),save_pos[:,2])
+
+	def test_leapfrog_int_nfw_cosmo(self):
+		# Just a couple of simple test cases to make sure that code behaves
+		# as exptected in an expanding cosmology.
+		# Start with no potential and make sure that a stationary particle
+		# stays stationary.
+		rho_0 = 0.0
+		r_scale = 1
+		G = 0.8962419740798497
+
+		dt = 0.0001
+		num_dt = int(1e5)
+
+		pos_nfw_array = np.tile(np.zeros(3,dtype=np.float64),(num_dt,1))
+		save_pos = np.zeros((num_dt+1,3))
+		save_vel = np.zeros((num_dt+1,3))
+
+		# Change the rho_0 and r_scale to a fixed array in time
+		rho_0_array = rho_0*np.ones(num_dt,dtype=np.float64)
+		r_scale_array = r_scale*np.ones(num_dt,dtype=np.float64)
+
+		r_init = 20
+		pos_init = np.array([r_init,0,0],dtype=np.float64)
+
+		# TODO complete this test.
 
 
 class IntegratorTestsFricDyn(unittest.TestCase):
