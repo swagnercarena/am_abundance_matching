@@ -211,7 +211,7 @@ def leapfrog_int_nb(part_pos,part_vel,part_mass,dt,num_dt,save_pos_array,
 
 
 @numba.njit()
-def calc_neg_grad_nfw(rho_0,r_scale,pos_nfw,pos):
+def calc_neg_grad_nfw(rho_0,r_scale,pos_nfw,pos,epsilon=1e-5):
 	"""
 	Calculate the negative gradient of the nfw potential at a specific
 	position.
@@ -221,14 +221,17 @@ def calc_neg_grad_nfw(rho_0,r_scale,pos_nfw,pos):
 		r_scale (float): The scale radius for the NFW profile
 		pos_nfw (np.array): The 3D position of the NFW
 		pos (np.array): The 3D position to calculate the gradient at
+		epsilon (float): A force softening scale in units of (300kpc)^2.
 
 	Returns:
 		(np.array): The 3D negative gradient of the potential
 	"""
 	norm = 4 * np.pi * G * rho_0 * r_scale**3
-	r2 = np.sum(np.square(pos_nfw-pos))
+	# Add epsilon to avoid collisions
+	r2 = np.sum(np.square(pos_nfw-pos))+epsilon
 	r = np.sqrt(r2)
-	r_hat = (pos_nfw-pos)/r
+	# Don't include epsilon in r_hat calculation
+	r_hat = (pos_nfw-pos)/np.sqrt(r2-epsilon)
 
 	return norm*(1/r2 * np.log(1+r/r_scale) - 1/(r_scale+r)*1/r) * r_hat
 
@@ -296,6 +299,71 @@ def leapfrog_int_nfw(pos_init,vel_init,rho_0_array,r_scale_array,pos_nfw_array,
 
 
 @numba.njit()
+def leapfrog_int_nfw_hf(pos_init,vel_init,rho_0_array,r_scale_array,
+	pos_nfw_array,hf,dt,save_pos_array,save_vel_array):
+	"""
+	Integrate rotation through an NFW potential using kick-drift-kick leapfrog
+
+	Parameters:
+		pos_init (np.array): 3D initial position of the particle. Will
+			be modified.
+		vel_init (np.array): 3D initial velocity of the particle. Will
+			be modified.
+		rho_0_array (np.array): A num_dt array with the amplitude of the
+			NFW (in unites of mass) at each time step.
+		r_scale_array (np.array): A num_dt array with the the scale radius
+			of the NFW at each time step.
+		pos_nfw_array (np.array): The num_dt*3D position of the NFW at each
+			time step. This array will be used to determine the number of
+			integration steps.
+		hf (np.array): The num_dt*3D array of the hubble flow velocity at
+			each time step
+		dt (float): The size of a timestep
+		save_pos_array (np.array): A (num_dt+1)*N*3D array where the
+			positions will be saved.
+		save_vel_array (np.array): A (2*num_dt+1)*N*3D array where the
+			velocities will be saved.
+	"""
+	# Clear save arrays in case they have values
+	save_pos_array *= 0
+	save_vel_array *= 0
+
+	# Allocate array to store acceleration
+	ai = np.zeros(3,dtype=np.float64)
+
+	num_dt = len(pos_nfw_array)
+
+	for ti in range(num_dt):
+		# Save the pos and vel at this step
+		save_pos_array[ti] += pos_init
+		save_vel_array[ti] += vel_init
+
+		# Kick step
+		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
+			pos_nfw_array[ti],pos_init)
+		leapfrog_v_step(vel_init,dt/2,ai)
+
+		# Reset the force vectors
+		ai *= 0
+
+		# Drift step
+		hf_vel = hf[ti]*pos_init
+		leapfrog_p_step(pos_init,vel_init+hf_vel,dt)
+
+		# Kick step.
+		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
+			pos_nfw_array[ti],pos_init)
+		leapfrog_v_step(vel_init,dt/2,ai)
+
+		# Reset the force vectors
+		ai *= 0
+
+	# Save the pos and vel for the final step
+	save_pos_array[num_dt] += pos_init
+	save_vel_array[num_dt] += vel_init
+
+
+@numba.njit()
 def leapfrog_int_nfw_cosmo(pos_init,vel_init,rho_0_array,r_scale_array,
 	scale_factor_array,pos_nfw_array,dt,save_pos_array,save_vel_array):
 	"""
@@ -343,7 +411,7 @@ def leapfrog_int_nfw_cosmo(pos_init,vel_init,rho_0_array,r_scale_array,
 
 		# Kick step. Convert to physical to calculate gradients.
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
-			pos_nfw_array[ti]*scale,pos_init*scale)*scale
+			pos_nfw_array[ti]*scale,pos_init*scale)*scale**2
 		leapfrog_v_step_cosmo(vel_init,dt/2,ai,scale)
 
 		# Reset the force vectors
@@ -354,7 +422,7 @@ def leapfrog_int_nfw_cosmo(pos_init,vel_init,rho_0_array,r_scale_array,
 
 		# Kick step. Convert to physical to calculate gradients.
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
-			pos_nfw_array[ti]*scale,pos_init*scale)*scale
+			pos_nfw_array[ti]*scale,pos_init*scale)*scale**2
 		leapfrog_v_step_cosmo(vel_init,dt/2,ai,scale)
 
 		# Reset the force vectors
@@ -482,9 +550,9 @@ def nfw_rho(r_scale,rho_0,pos_nfw,pos):
 
 
 @numba.njit()
-def leapfrog_int_nfw_f_dyn(pos_init,vel_init,m_sub,rho_0_array,r_scale_array,
-	pos_nfw_array,m_nfw_array,v_max_nfw_array,rho_vir,dt,save_pos_array,
-	save_vel_array):
+def leapfrog_int_nfw_f_dyn_hf(pos_init,vel_init,m_sub,rho_0_array,
+	r_scale_array,pos_nfw_array,hf,m_nfw_array,v_max_nfw_array,rho_vir,dt,
+	save_pos_array,save_vel_array):
 	"""
 	Integrate rotation through an NFW potential with dynamical friction
 
@@ -501,6 +569,8 @@ def leapfrog_int_nfw_f_dyn(pos_init,vel_init,m_sub,rho_0_array,r_scale_array,
 		pos_nfw_array (np.array): The num_dt*3D position of the NFW at each
 			time step. This array will be used to determine the number of
 			integration steps.
+		hf_int (np.array): The num_dt*3D array of the hubble flow velocity at
+			each time step
 		m_nfw_array (np.array): A num_dt array with the mass of the NFW at
 			each time step.
 		v_max_nfw_array (np.array): A num_dt array with the maximum
@@ -516,8 +586,10 @@ def leapfrog_int_nfw_f_dyn(pos_init,vel_init,m_sub,rho_0_array,r_scale_array,
 	# Clear save arrays in case they have values
 	save_pos_array *= 0
 	save_vel_array *= 0
-	a0 = np.zeros(3,dtype=np.float64)
-	a1 = np.zeros(3,dtype=np.float64)
+
+	# Allocate array to store acceleration
+	ai = np.zeros(3,dtype=np.float64)
+
 	num_dt = len(pos_nfw_array)
 
 	for ti in range(num_dt):
@@ -526,14 +598,21 @@ def leapfrog_int_nfw_f_dyn(pos_init,vel_init,m_sub,rho_0_array,r_scale_array,
 		save_vel_array[ti] += vel_init
 
 		# First get the force for the particle at the current position
-		a0 += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
+		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
 			pos_nfw_array[ti],pos_init)
+
 		# Calculate the terms required for the dynamical friction term.
 		sigma_v = nfw_sigma_v(r_scale_array[ti],v_max_nfw_array[ti],
 			pos_nfw_array[ti],pos_init)
 		rho = nfw_rho(rho_0_array[ti],r_scale_array[ti],pos_nfw_array[ti],
 			pos_init)
-		a0 += calc_neg_grad_f_dyn(vel_init,rho,m_sub,m_nfw_array[ti],sigma_v)
+		ai += calc_neg_grad_f_dyn(vel_init,rho,m_sub,m_nfw_array[ti],sigma_v)
+
+		# Kick step
+		leapfrog_v_step(vel_init,dt/2,ai)
+
+		# Reset the force vector
+		ai *= 0
 
 		# Also calculate the mass loss
 		m_sub += calc_mass_loss(vel_init,m_sub,m_nfw_array[ti],
@@ -543,24 +622,22 @@ def leapfrog_int_nfw_f_dyn(pos_init,vel_init,m_sub,rho_0_array,r_scale_array,
 		# generous enough.
 		m_sub = max(m_sub,1e-13)
 
-		# Do the fist integration step.
-		leapfrog_p_step(pos_init,vel_init,dt,a0)
+		# Drift step
+		hf_vel = hf[ti]*pos_init
+		leapfrog_p_step(pos_init,vel_init+hf_vel,dt)
 
 		# Calculate the force on the particle at the new position.
-		a1 += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
+		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
 			pos_nfw_array[ti],pos_init)
 		sigma_v = nfw_sigma_v(r_scale_array[ti],v_max_nfw_array[ti],
 			pos_nfw_array[ti],pos_init)
 		rho = nfw_rho(rho_0_array[ti],r_scale_array[ti],pos_nfw_array[ti],
 			pos_init)
-		a1 += calc_neg_grad_f_dyn(vel_init,rho,m_sub,m_nfw_array[ti],sigma_v)
+		ai += calc_neg_grad_f_dyn(vel_init,rho,m_sub,m_nfw_array[ti],sigma_v)
+		leapfrog_v_step(vel_init,dt/2,ai)
 
-		# Do a step of leapfrog integration on this particle
-		leapfrog_v_step(vel_init,dt,a0,a1)
-
-		# Reset the force vectors
-		a0 *= 0
-		a1 *= 0
+		# Reset the force vector
+		ai *= 0
 
 	# Save the pos and vel for the final step
 	save_pos_array[num_dt] += pos_init

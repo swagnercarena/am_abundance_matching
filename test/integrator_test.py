@@ -182,7 +182,7 @@ class IntegratorTestsNFW(unittest.TestCase):
 					pos)
 
 				self.assertAlmostEqual(np.abs(r_force),
-					np.sqrt(np.sum(np.square(neg_grad))))
+					np.sqrt(np.sum(np.square(neg_grad))),places=5)
 
 				# Ensure the direction is correct
 				np.testing.assert_almost_equal(
@@ -464,9 +464,11 @@ class IntegratorTestsFricDyn(unittest.TestCase):
 		m_sub = M_r/1e20
 		v_max_nfw_array *= 1
 
-		integrator.leapfrog_int_nfw_f_dyn(pos_init,vel_init,m_sub,rho_0_array,
-			r_scale_array,pos_nfw_array,m_nfw_array,v_max_nfw_array,
-			rho_vir,dt,save_pos_dyn_f,save_vel_dyn_f)
+		# Set hf array to 0 for integration
+		hf_array = np.zeros(num_dt)
+		integrator.leapfrog_int_nfw_f_dyn_hf(pos_init,vel_init,m_sub,
+			rho_0_array,r_scale_array,pos_nfw_array,hf_array,m_nfw_array,
+			v_max_nfw_array,rho_vir,dt,save_pos_dyn_f,save_vel_dyn_f)
 
 		# Reset the initial velocity and position
 		pos_init = np.array([r_init,0,0],dtype=np.float64)
@@ -482,9 +484,9 @@ class IntegratorTestsFricDyn(unittest.TestCase):
 
 		pos_init = np.array([r_init,0,0],dtype=np.float64)
 		vel_init = np.array([0,v_r,0],dtype=np.float64)
-		integrator.leapfrog_int_nfw_f_dyn(pos_init,vel_init,m_sub,rho_0_array,
-			r_scale_array,pos_nfw_array,m_nfw_array,v_max_nfw_array,
-			rho_vir,dt,save_pos_dyn_f,save_vel_dyn_f)
+		integrator.leapfrog_int_nfw_f_dyn_hf(pos_init,vel_init,m_sub,
+			rho_0_array,r_scale_array,pos_nfw_array,hf_array,m_nfw_array,
+			v_max_nfw_array,rho_vir,dt,save_pos_dyn_f,save_vel_dyn_f)
 		np.testing.assert_almost_equal(save_pos,save_pos_dyn_f)
 
 		# Now make sure that dynamical friction behaves as we want it to.
@@ -492,9 +494,9 @@ class IntegratorTestsFricDyn(unittest.TestCase):
 
 		pos_init = np.array([r_init,0,0],dtype=np.float64)
 		vel_init = np.array([0,v_r,0],dtype=np.float64)
-		integrator.leapfrog_int_nfw_f_dyn(pos_init,vel_init,m_sub,rho_0_array,
-			r_scale_array,pos_nfw_array,m_nfw_array,v_max_nfw_array,
-			rho_vir,dt,save_pos_dyn_f,save_vel_dyn_f)
+		integrator.leapfrog_int_nfw_f_dyn_hf(pos_init,vel_init,m_sub,
+			rho_0_array,r_scale_array,pos_nfw_array,hf_array,m_nfw_array,
+			v_max_nfw_array,rho_vir,dt,save_pos_dyn_f,save_vel_dyn_f)
 
 		# Make sure the radius is smaller and decreasing due to the friction
 		r_f_dyn = np.sqrt(np.sum(np.square(save_pos_dyn_f),axis=-1))
