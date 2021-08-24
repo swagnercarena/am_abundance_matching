@@ -128,6 +128,32 @@ class IntegratorTestsNB(unittest.TestCase):
 				np.testing.assert_almost_equal(save_vel_array[0,i,j],
 					save_vel_array[-1,i,j],decimal=3)
 
+	def test_calc_dif_vec(self):
+		# Just make sure that the dif vec calculation returns the
+		# correct distances for a few precomputed test values
+		r1 = np.array([1.0,5.0,0.0])
+		r2 = np.array([5.0,1.0,0.0])
+
+		# Test no box length
+		box_length = np.inf
+		dv = integrator.calc_dif_vec(r1,r2,box_length)
+		np.testing.assert_almost_equal(dv,np.array([4.0,-4.0,0.0]))
+
+		# Test a box length of 6
+		box_length=6
+		dv = integrator.calc_dif_vec(r1,r2,box_length)
+		np.testing.assert_almost_equal(dv,np.array([-2.0,2.0,0.0]))
+
+		# Test a box length of 2
+		box_length=2
+		dv = integrator.calc_dif_vec(r1,r2,box_length)
+		np.testing.assert_almost_equal(dv,np.array([0.0,0.0,0.0]))
+
+		# Test a box length of 2
+		box_length=3
+		dv = integrator.calc_dif_vec(r1,r2,box_length)
+		np.testing.assert_almost_equal(dv,np.array([1.0,-1.0,0.0]))
+
 
 class IntegratorTestsNFW(unittest.TestCase):
 	# Test class for NFW methods.
