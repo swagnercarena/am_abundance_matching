@@ -14,12 +14,12 @@ Units: In order to avoid numerical issues in the calculation, the units have
 TODO:
 	2)	Include variable force softening scale in the integrator codes
 	3)	Write code to allow for multiple NFWs?
-	4) 	Discuss unit choices and purpose in an opening statement.
 """
 
 import math
 import numba
 import numpy as np
+from avocet import conversion
 
 # Declare some global variables (400 km^2*300 kpc/(1e13 M_sun*s^2))
 G = 0.8962419740798497
@@ -328,6 +328,8 @@ def leapfrog_int_nfw_hf(pos_init,vel_init,rho_0_array,r_scale_array,
 	save_pos_array *= 0
 	save_vel_array *= 0
 
+	# Constant for
+
 	# Allocate array to store acceleration
 	ai = np.zeros(3,dtype=np.float64)
 
@@ -341,6 +343,8 @@ def leapfrog_int_nfw_hf(pos_init,vel_init,rho_0_array,r_scale_array,
 		# Kick step
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
 			pos_nfw_array[ti],pos_init)
+		# Add hubble drag
+		ai -= hf[ti]*vel_init
 		leapfrog_v_step(vel_init,dt/2,ai)
 
 		# Reset the force vectors
@@ -353,6 +357,8 @@ def leapfrog_int_nfw_hf(pos_init,vel_init,rho_0_array,r_scale_array,
 		# Kick step.
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
 			pos_nfw_array[ti],pos_init)
+		# Add hubble drag
+		ai -= hf[ti]*vel_init
 		leapfrog_v_step(vel_init,dt/2,ai)
 
 		# Reset the force vectors

@@ -1,9 +1,10 @@
 import unittest
-from avocet import integrator
+from avocet import integrator, conversion
 import numpy as np
 from galpy.orbit import Orbit
 from galpy.potential import NFWPotential
 import math
+from colossus.cosmology import cosmology
 
 # Some useful conversion factors we'll use
 M_sun2kg = 1.9891e30*1e13
@@ -298,29 +299,110 @@ class IntegratorTestsNFW(unittest.TestCase):
 		np.testing.assert_almost_equal(o.z(ts),save_pos[:,2])
 
 	def test_leapfrog_int_nfw_cosmo(self):
-		# Just a couple of simple test cases to make sure that code behaves
-		# as exptected in an expanding cosmology.
-		# Start with no potential and make sure that a stationary particle
-		# stays stationary.
-		rho_0 = 0.0
-		r_scale = 1
-		G = 0.8962419740798497
+		# Compare the results of our code to a reworking of the universe machine
+		# code. This ensures consistency when we present universe machine
+		# equivalent results.
 
-		dt = 0.0001
-		num_dt = int(1e5)
+		# First set the time range for our integration
+		dt = 0.00001
+		dt_um = dt/conversion.convert_unit_gigayear(1)*1e3
+		num_dt = int(3e4)
 
-		pos_nfw_array = np.tile(np.zeros(3,dtype=np.float64),(num_dt,1))
+		# We want the time in units of Myr.
+		times = (np.linspace(0,dt*num_dt,num_dt)[::-1]/
+			conversion.convert_unit_gigayear(1)*1e3)
+		cosmo = cosmology.setCosmology('bolshoi')
+		scale_factor = 1/(1+cosmo.lookbackTime(times/1e3,inverse=True))
+
+		# Some of the fundamental units being used by UM
+		vel_dt = dt_um * 1.02268944e-6 * cosmo.h / scale_factor  # Mpc/Myr/h
+		H = cosmo.Hz(cosmo.lookbackTime(times/1e3,inverse=True))  # km/s/Mpc
+		h_drag = -H*1.02269032e-6
+		# h_drag = -2*H*scale_factor*1.02269032e-6
+		acc_dt2 = dt_um**2/2 * 1.02268944e-6 * cosmo.h / scale_factor
+		conv_const = scale_factor**2 / cosmo.h**2
+		acc = np.zeros(3)
+		Gc = 4.39877036e-15  # In Mpc^2 / Myr / Msun * km/s
+
+		# Some units we need for avocet
+		hf_int =  (conversion.convert_units_kms(cosmo.Hz(1/scale_factor-1))/
+			conversion.convert_unit_Mpc(1))
+
+		# Now we have to define the mass and nfw position in our units and
+		# UM units.
+		pos_nfw_array = np.zeros((num_dt,3))  # 300 kpc
+		pos_nfw_array_um = np.zeros((num_dt,3))  # comoving Mpc/h
+
+		rho_0_array = np.ones(num_dt)  # 1e13 M_Sun / (300 kpc)^3
+		rho_0_array_um = (rho_0_array/conversion.convert_unit_M_sun(1)*
+			conversion.convert_unit_Mpc(1)**3/cosmo.h**3)  # M_sun / (Mpc/h)^3
+		# Convert rho_0_array_um to comoving
+		rho_0_array_um = (rho_0_array_um.T * scale_factor**3).T
+
+		r_scale_array = np.ones(num_dt)  # 300 kpc
+		r_scale_array_um = (r_scale_array.T/conversion.convert_unit_Mpc(1)*
+			cosmo.h/scale_factor).T  # comoving Mpc/h
+
+		# We'll save our results here
 		save_pos = np.zeros((num_dt+1,3))
 		save_vel = np.zeros((num_dt+1,3))
+		save_pos_um = np.zeros((num_dt+1,3))
+		save_vel_um = np.zeros((num_dt+1,3))
 
-		# Change the rho_0 and r_scale to a fixed array in time
-		rho_0_array = rho_0*np.ones(num_dt,dtype=np.float64)
-		r_scale_array = r_scale*np.ones(num_dt,dtype=np.float64)
+		# The initial position and velocity
+		pos_init = np.array([1,0,0],dtype=np.float)  # 300 kpc
+		vel_init = np.array([0.001,1,0],dtype=np.float)  # 400 km/s
+		pos_um = (pos_init/conversion.convert_unit_Mpc(1)*
+			cosmo.h/scale_factor[0])  # comoving Mpc/h
+		vel_um = vel_init/conversion.convert_units_kms(1)
 
-		r_init = 20
-		pos_init = np.array([r_init,0,0],dtype=np.float64)
+		# Universe machine integration
+		save_pos_um[0] += pos_um
+		save_vel_um[0] += vel_um
+		for ti in range(num_dt):
 
-		# TODO complete this test.
+			# If we're not at the first step
+			if ti != 0:
+				vel_um += acc*dt_um*0.5
+
+			dr = pos_nfw_array_um[ti]-pos_um
+			r = np.sqrt(np.sum(np.square(dr)))
+			r3 = r**3 * conv_const[ti]
+			rs = r_scale_array_um[ti]
+			m_um = 4 * np.pi * rho_0_array_um[ti]*rs**3
+			m_um *= np.log(1+r/rs)+1/(1+r/rs)-1
+			accel = Gc*m_um/r3
+
+			acc = accel*dr + h_drag[ti]*vel_um
+
+			if ti != 0:
+				vel_um += acc*dt_um*0.5
+
+			pos_um += vel_um*vel_dt[ti] + acc*acc_dt2[ti]
+
+			save_pos_um[ti+1] += pos_um
+			save_vel_um[ti+1] += vel_um
+
+		# Do the same integration in avocet
+		integrator.leapfrog_int_nfw_hf(pos_init,vel_init,rho_0_array,
+			r_scale_array,pos_nfw_array,hf_int,dt,save_pos,save_vel)
+
+		# Convert save_pos into comoving units
+		save_pos = (save_pos[:-1].T/conversion.convert_unit_Mpc(1)*cosmo.h/
+			scale_factor).T
+		save_vel = (save_vel[:-1].T/conversion.convert_units_kms(1)).T
+
+		np.testing.assert_almost_equal((save_pos+1e-12)/(save_pos_um[:-1]+1e-12),
+			np.ones(save_pos.shape),decimal=0.2)
+
+		# print(save_pos[-10:]/save_pos_um[:-1][-10:])
+		# print(save_vel[-10:]/save_vel_um[:-1][-10:])
+
+		# import matplotlib.pyplot as plt
+		# plt.plot(save_pos[:,0],save_pos[:,1],'.',label='Ours')
+		# plt.plot(save_pos_um[:,0],save_pos_um[:,1],'.',label='UM')
+		# plt.legend()
+		# plt.show()
 
 
 class IntegratorTestsFricDyn(unittest.TestCase):
