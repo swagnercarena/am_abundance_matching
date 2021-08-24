@@ -132,30 +132,6 @@ class IntegratorTestsNB(unittest.TestCase):
 class IntegratorTestsNFW(unittest.TestCase):
 	# Test class for NFW methods.
 
-	def test_leapfrog_p_step_cosmo(self):
-		# Test that the leapfrog p_step cosmo does the desired updates.
-		x0 = np.random.randn(20,3)
-		v0 = np.random.randn(20,3)
-		scale = np.random.rand(20,3)
-		dt = 0.2
-
-		for i in range(len(x0)):
-			x_temp = np.copy(x0[i])
-			integrator.leapfrog_p_step_cosmo(x0[i],v0[i],dt,scale[i])
-			np.testing.assert_almost_equal(x_temp+v0[i]*dt/scale[i]**2,x0[i])
-
-	def test_leapfrog_v_step_cosmo(self):
-		# Test that the leapfrog p_step does the desired updates.
-		v0 = np.random.randn(20,3)
-		a0 = np.random.randn(20,3)
-		scale = np.random.rand(20,3)
-		dt = 0.2
-
-		for i in range(len(v0)):
-			v_temp = np.copy(v0[i])
-			integrator.leapfrog_v_step_cosmo(v0[i],dt,a0[i],scale[i])
-			np.testing.assert_almost_equal(v_temp+a0[i]*dt/scale[i],v0[i])
-
 	def test_calc_neg_grad_nfw(self):
 		# Test that calculating the nfw negative gradient returns the same
 		# results as galpy (but faster hopefully :))
@@ -298,7 +274,7 @@ class IntegratorTestsNFW(unittest.TestCase):
 		np.testing.assert_almost_equal(o.y(ts),save_pos[:,1])
 		np.testing.assert_almost_equal(o.z(ts),save_pos[:,2])
 
-	def test_leapfrog_int_nfw_cosmo(self):
+	def test_leapfrog_int_nfw_hf(self):
 		# Compare the results of our code to a reworking of the universe machine
 		# code. This ensures consistency when we present universe machine
 		# equivalent results.
@@ -399,8 +375,15 @@ class IntegratorTestsNFW(unittest.TestCase):
 		# print(save_vel[-10:]/save_vel_um[:-1][-10:])
 
 		# import matplotlib.pyplot as plt
-		# plt.plot(save_pos[:,0],save_pos[:,1],'.',label='Ours')
-		# plt.plot(save_pos_um[:,0],save_pos_um[:,1],'.',label='UM')
+		# plt.plot(save_pos[0,0],save_pos[0,1],'o',
+		# 	label=r'Start',ms=10)
+		# plt.plot(save_pos[:,0],save_pos[:,1],'.',
+		# 	label=r'$\dot{\delta v} = - H \delta v$')
+		# plt.plot(save_pos_um[:,0],save_pos_um[:,1],'.',
+		# 	label=r'$\dot{u}= - 2 H u$')
+		# plt.plot(0,0,'.',label='Host')
+		# plt.xlabel('x (comoving Mpc/h)')
+		# plt.ylabel('y (comoving Mpc/h)')
 		# plt.legend()
 		# plt.show()
 
@@ -438,9 +421,10 @@ class IntegratorTestsFricDyn(unittest.TestCase):
 		m_sub = 1e2
 		m_host = 1e3
 		rho_vir = 1.6
+		box_length = np.inf
 
 		self.assertEqual(integrator.calc_mass_loss(vel,m_sub,m_host,rho_vir,
-			pos_nfw,pos),0)
+			pos_nfw,pos,box_length),0)
 
 		# Add some perpindicular kicks and make sure that doesn't change
 		# anything
@@ -451,7 +435,7 @@ class IntegratorTestsFricDyn(unittest.TestCase):
 			kick2 = np.random.randn()
 			vel += perp1*kick1 + perp2*kick2
 			self.assertEqual(integrator.calc_mass_loss(vel,m_sub,m_host,
-				rho_vir,pos_nfw,pos),0)
+				rho_vir,pos_nfw,pos,box_length),0)
 
 		# Repeat the same but for ingoing
 		vel = np.array([-2,-1,1],dtype=np.float64)
@@ -459,7 +443,7 @@ class IntegratorTestsFricDyn(unittest.TestCase):
 		mass_loss = -1.18*m_sub/t_dyn
 		mass_loss *= (m_sub/m_host)**(0.07)
 		self.assertAlmostEqual(integrator.calc_mass_loss(vel,m_sub,m_host,
-			rho_vir,pos_nfw,pos),mass_loss)
+			rho_vir,pos_nfw,pos,box_length),mass_loss)
 
 		# Random perpindicular kicks
 		for _ in range(10):
@@ -467,7 +451,7 @@ class IntegratorTestsFricDyn(unittest.TestCase):
 			kick2 = np.random.randn()
 			vel += perp1*kick1 + perp2*kick2
 			self.assertEqual(integrator.calc_mass_loss(vel,m_sub,m_host,
-				rho_vir,pos_nfw,pos),mass_loss)
+				rho_vir,pos_nfw,pos,box_length),mass_loss)
 
 	def test_nfw_sigma_v(self):
 		# Test the the calculation of sigma_v returns the values we expect
@@ -476,6 +460,7 @@ class IntegratorTestsFricDyn(unittest.TestCase):
 		v_max = 2
 		r_values = np.linspace(0.1,r_scale,100)
 		pos_nfw = np.zeros(3,dtype=np.float64)
+		box_length = np.inf
 
 		for r in r_values:
 			x = r/r_scale
@@ -488,7 +473,7 @@ class IntegratorTestsFricDyn(unittest.TestCase):
 			sigma_v_hand_calc *= x**0.354
 			sigma_v_hand_calc /= (1+1.1756*(x**0.725))
 			self.assertAlmostEqual(integrator.nfw_sigma_v(r_scale,
-				v_max,pos_nfw,pos),sigma_v_hand_calc)
+				v_max,pos_nfw,pos,box_length),sigma_v_hand_calc)
 
 	def test_nfw_rho(self):
 		# Test the the calculation of rho for an NFW returns the values we
@@ -497,6 +482,7 @@ class IntegratorTestsFricDyn(unittest.TestCase):
 		rho_0 = 20
 		r_values = np.linspace(0.1,r_scale,100)
 		pos_nfw = np.zeros(3,dtype=np.float64)
+		box_length = np.inf
 
 		for r in r_values:
 			pos = np.random.randn(3).astype(np.float64)
@@ -507,7 +493,7 @@ class IntegratorTestsFricDyn(unittest.TestCase):
 			rho_hand_calc /= r/r_scale
 			rho_hand_calc /= (1+r/r_scale)**2
 			self.assertAlmostEqual(integrator.nfw_rho(r_scale,
-				rho_0,pos_nfw,pos),rho_hand_calc)
+				rho_0,pos_nfw,pos,box_length),rho_hand_calc)
 
 	def test_leapfrog_int_nfw_f_dyn(self):
 		# There is no code for us to compare to here, so we can instead to some
