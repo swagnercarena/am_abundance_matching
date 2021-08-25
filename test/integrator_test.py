@@ -192,6 +192,44 @@ class IntegratorTestsNFW(unittest.TestCase):
 					neg_grad/np.sqrt(np.sum(np.square(neg_grad))),
 					-pos/r)
 
+		# Check that the force softening scale is being used.
+		thetas = np.random.rand(10).astype(np.float64)*2*np.pi
+		rs = np.array([1,2,3],dtype=np.float64)
+		force_softening = 1
+		for theta in thetas:
+			for r in rs:
+				# Update the position
+				pos[0] = r*np.cos(theta)
+				pos[1] = r*np.sin(theta)
+
+				# Compare both magnitudes
+				r_force = nfw.Rforce(r,0)
+				neg_grad = integrator.calc_neg_grad_nfw(rho_0,r_scale,pos_nfw,
+					pos,force_softening=force_softening)
+
+				self.assertGreater(np.abs(r_force),
+					np.sqrt(np.sum(np.square(neg_grad))))
+
+				# Ensure the direction is still correct
+				np.testing.assert_almost_equal(
+					neg_grad/np.sqrt(np.sum(np.square(neg_grad))),
+					-pos/r)
+
+		# Check that the box boundary is being used correctly
+		box_length = 4
+		pos[0] = 3
+		pos[1] = 1
+		r_force = nfw.Rforce(np.sqrt(2),0)
+		neg_grad = integrator.calc_neg_grad_nfw(rho_0,r_scale,pos_nfw,pos,
+			box_length=box_length)
+		# Test that it's calculating the radius correctly
+		self.assertAlmostEqual(np.abs(r_force),
+			np.sqrt(np.sum(np.square(neg_grad))),places=5)
+		# Test that the direction is correct
+		np.testing.assert_almost_equal(
+			neg_grad/np.sqrt(np.sum(np.square(neg_grad))),
+			np.array([1.0,-1.0,0.0])/np.sqrt(2))
+
 	def test_leapfrog_int_nfw(self):
 		# Test the circular orbits and circular orbits within a moving NFW work
 		# Start with something simple like circular motion
@@ -199,7 +237,7 @@ class IntegratorTestsNFW(unittest.TestCase):
 		r_scale = 1
 		G = 0.8962419740798497
 
-		dt = 0.0001
+		dt = 0.01
 		num_dt = int(1e5)
 
 		pos_nfw_array = np.tile(np.zeros(3,dtype=np.float64),(num_dt,1))
@@ -211,12 +249,14 @@ class IntegratorTestsNFW(unittest.TestCase):
 		r_scale_array = r_scale*np.ones(num_dt,dtype=np.float64)
 
 		r_init = 20
-		pos_init = np.array([r_init,0,0],dtype=np.float64)
+		pos_init = np.array([r_init/np.sqrt(2),r_init/np.sqrt(2),0],
+			dtype=np.float64)
 
 		M_r = 4*np.pi*rho_0*r_scale**3*(np.log((r_scale+r_init)/r_scale)+
 			r_scale/(r_scale+r_init) - 1)
 		v_r = np.sqrt(G*M_r/r_init)
-		vel_init = np.array([0,v_r,0],dtype=np.float64)
+		vel_init = np.array([v_r/np.sqrt(2),-v_r/np.sqrt(2),0],
+			dtype=np.float64)
 		period = 2*np.pi*np.sqrt(r_init**3/(G*M_r))
 		# Get the final completed period
 		last_period = int(int(num_dt*dt/period)*period//dt)
@@ -232,13 +272,62 @@ class IntegratorTestsNFW(unittest.TestCase):
 		for pi, pos in enumerate(pos_nfw_array):
 			pos[0] += pi*dt
 
-		pos_init = np.array([r_init,0,0],dtype=np.float64)
-		vel_init = np.array([1,v_r,0],dtype=np.float64)
+		pos_init = np.array([r_init/np.sqrt(2),r_init/np.sqrt(2),0],
+			dtype=np.float64)
+		vel_init = np.array([1+v_r/np.sqrt(2),-v_r/np.sqrt(2),0],
+			dtype=np.float64)
 		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0_array,
 			r_scale_array,pos_nfw_array,dt,save_pos,save_vel)
 
 		np.testing.assert_almost_equal(save_pos[0,:],
 			save_pos[last_period,:]-pos_nfw_array[last_period,:],
+			decimal=0)
+
+		# Run another integration with box boundaries.
+		pos_init = np.array([25,5,0],dtype=np.float64)
+		vel_init = np.array([v_r,0,0],dtype=np.float64)
+		pos_nfw_array = np.tile(np.zeros(3,dtype=np.float64),(num_dt,1))
+		pos_nfw_array[:,:2] = 25
+		box_length = 60
+		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0_array,
+			r_scale_array,pos_nfw_array,dt,save_pos,save_vel,
+			box_length=box_length)
+		# Check that it returns to the original position once per period.
+		np.testing.assert_almost_equal(save_pos[0,:],save_pos[last_period,:],
+			decimal=3)
+
+		# Repeat this test with the integration occuring over the boundary
+		pos_init = np.array([40,25,0],dtype=np.float64)
+		vel_init = np.array([0,-v_r,0],dtype=np.float64)
+		pos_nfw_array = np.tile(np.zeros(3,dtype=np.float64),(num_dt,1))
+		pos_nfw_array[:,1] = 25
+		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0_array,
+			r_scale_array,pos_nfw_array,dt,save_pos,save_vel,
+			box_length=box_length)
+		# Check that it returns to the original position once per period.
+		np.testing.assert_almost_equal(save_pos[0,:],save_pos[last_period,:],
+			decimal=3)
+
+		# Finally, test that the force softening behaves as expected.
+		# TODO
+		r_init = 20
+		force_softening = np.ones(num_dt)*20
+		v_r = np.sqrt(G*M_r/(r_init**2+force_softening[0]**2)*r_init)
+		period = 2*np.pi*r_init/v_r
+		# Get the final completed period
+		last_period = int(int(num_dt*dt/period)*period//dt)
+		pos_init = np.array([r_init/np.sqrt(2),r_init/np.sqrt(2),0],
+			dtype=np.float64)
+		pos_nfw_array = np.tile(np.zeros(3,dtype=np.float64),(num_dt,1))
+		vel_init = np.array([v_r/np.sqrt(2),-v_r/np.sqrt(2),0],
+			dtype=np.float64)
+		box_length = np.inf
+		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0_array,
+			r_scale_array,pos_nfw_array,dt,save_pos,save_vel,
+			force_softening=force_softening,box_length=box_length)
+
+		# Check that it returns to the original position once per period.
+		np.testing.assert_almost_equal(save_pos[0,:],save_pos[last_period,:],
 			decimal=3)
 
 	def test_leapfrog_nfw_galpy(self):

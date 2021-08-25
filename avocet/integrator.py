@@ -30,7 +30,7 @@ def leapfrog_p_step(x0,v0,dt):
 	Given the current position and velocity of a particle conduct one drift
 	step of leapfrog integration.
 
-	Parameters:
+	Args:
 		x0 (np.array): The current 3d position. Modified in place to x1
 		v0 (np.array): The current 3d velocity.
 		dt (float): The timestep for integration
@@ -39,12 +39,29 @@ def leapfrog_p_step(x0,v0,dt):
 
 
 @numba.njit()
+def enforce_box_boundary(x0,box_length):
+	"""
+	Enforce the boundary conditions on the position vector
+
+	Args:
+		x0 (np.array): The current 3d position. Modified in place.
+		box_length (float): The periodic box size. If np.inf then no periodic
+			boundary conditions will be used.
+	"""
+	# Cycle through each coordinate and make sure it is within the boundaries
+	# of the box.
+	if box_length<np.inf:
+		for i in range(len(x0)):
+			x0[i] = x0[i] % box_length
+
+
+@numba.njit()
 def leapfrog_v_step(v0,dt,a0):
 	"""
 	Given the current velocity and acceleration of a particle, conduct one
 	kick step of leapfrog integration.
 
-	Parameters:
+	Args:
 		v0 (np.array): The current 3d velocity. Modified in place to v1
 		dt (float): The timestep for integration
 		a0 (np.array): The 3d gradient of the potential.
@@ -183,6 +200,7 @@ def leapfrog_int_nb(part_pos,part_vel,part_mass,dt,num_dt,save_pos_array,
 			vel = part_vel[pi]
 
 			leapfrog_p_step(pos,vel,dt)
+			enforce_box_boundary(pos,box_length)
 
 		# Kick step
 		for pi in range(num_p):
@@ -210,7 +228,7 @@ def leapfrog_int_nb(part_pos,part_vel,part_mass,dt,num_dt,save_pos_array,
 
 
 @numba.njit()
-def calc_neg_grad_nfw(rho_0,r_scale,pos_nfw,pos,epsilon=1e-5,
+def calc_neg_grad_nfw(rho_0,r_scale,pos_nfw,pos,force_softening=0,
 	box_length=np.inf):
 	"""
 	Calculate the negative gradient of the nfw potential at a specific
@@ -221,7 +239,7 @@ def calc_neg_grad_nfw(rho_0,r_scale,pos_nfw,pos,epsilon=1e-5,
 		r_scale (float): The scale radius for the NFW profile
 		pos_nfw (np.array): The 3D position of the NFW
 		pos (np.array): The 3D position to calculate the gradient at
-		epsilon (float): A force softening scale in units of (300kpc)^2.
+		force_softening (float): A force softening scale in units of 300kpc.
 		box_length (float): The periodic box size. If np.inf then no periodic
 			boundary conditions will be used.
 
@@ -229,19 +247,23 @@ def calc_neg_grad_nfw(rho_0,r_scale,pos_nfw,pos,epsilon=1e-5,
 		(np.array): The 3D negative gradient of the potential
 	"""
 	norm = 4 * np.pi * G * rho_0 * r_scale**3
+	# We add the force softening in quadrature
+	force_softening_2 = force_softening**2
 	# Add epsilon to avoid collisions
 	pos_dif = calc_dif_vec(pos,pos_nfw,box_length)
-	r2 = np.sum(np.square(pos_dif))+epsilon
+	r2 = np.sum(np.square(pos_dif))
 	r = np.sqrt(r2)
-	# Don't include epsilon in r_hat calculation
-	r_hat = (pos_dif)/np.sqrt(r2-epsilon)
+	# Add force softening to the r^2 term.
+	r2 += force_softening_2
+	# Don't include force_softening in r_hat calculation
+	r_hat = (pos_dif)/r
 
-	return norm*(1/r2 * np.log(1+r/r_scale) - 1/(r_scale+r)*1/r) * r_hat
+	return norm/r2*(np.log(1+r/r_scale) - r/(r_scale+r)) * r_hat
 
 
 @numba.njit()
 def leapfrog_int_nfw(pos_init,vel_init,rho_0_array,r_scale_array,pos_nfw_array,
-	dt,save_pos_array,save_vel_array,box_length=np.inf):
+	dt,save_pos_array,save_vel_array,force_softening=None,box_length=np.inf):
 	"""
 	Integrate rotation through an NFW potential using kick-drift-kick leapfrog
 
@@ -262,6 +284,9 @@ def leapfrog_int_nfw(pos_init,vel_init,rho_0_array,r_scale_array,pos_nfw_array,
 			positions will be saved.
 		save_vel_array (np.array): A (2*num_dt+1)*N*3D array where the
 			velocities will be saved.
+		force_softening (np.array): A num_dt array of force softening scales
+			in units of 300 kpc. If none is passed in, a force softening of
+			0 will be applied.
 		box_length (float): The periodic box size. If np.inf then no periodic
 			boundary conditions will be used.
 	"""
@@ -274,6 +299,12 @@ def leapfrog_int_nfw(pos_init,vel_init,rho_0_array,r_scale_array,pos_nfw_array,
 
 	num_dt = len(pos_nfw_array)
 
+	# If no force softening is passed in, convert it to array of 0s
+	if force_softening is None:
+		fs_array = np.zeros(num_dt)
+	else:
+		fs_array = force_softening
+
 	for ti in range(num_dt):
 		# Save the pos and vel at this step
 		save_pos_array[ti] += pos_init
@@ -281,7 +312,8 @@ def leapfrog_int_nfw(pos_init,vel_init,rho_0_array,r_scale_array,pos_nfw_array,
 
 		# Kick step
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
-			pos_nfw_array[ti],pos_init,box_length=box_length)
+			pos_nfw_array[ti],pos_init,force_softening=fs_array[ti],
+			box_length=box_length)
 		leapfrog_v_step(vel_init,dt/2,ai)
 
 		# Reset the force vectors
@@ -289,10 +321,12 @@ def leapfrog_int_nfw(pos_init,vel_init,rho_0_array,r_scale_array,pos_nfw_array,
 
 		# Drift step
 		leapfrog_p_step(pos_init,vel_init,dt)
+		enforce_box_boundary(pos_init,box_length)
 
 		# Kick step.
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
-			pos_nfw_array[ti],pos_init,box_length=box_length)
+			pos_nfw_array[ti],pos_init,force_softening=fs_array[ti],
+			box_length=box_length)
 		leapfrog_v_step(vel_init,dt/2,ai)
 
 		# Reset the force vectors
@@ -305,7 +339,8 @@ def leapfrog_int_nfw(pos_init,vel_init,rho_0_array,r_scale_array,pos_nfw_array,
 
 @numba.njit()
 def leapfrog_int_nfw_hf(pos_init,vel_init,rho_0_array,r_scale_array,
-	pos_nfw_array,hf,dt,save_pos_array,save_vel_array,box_length=np.inf):
+	pos_nfw_array,hf,dt,save_pos_array,save_vel_array,force_softening=None,
+	box_length=np.inf):
 	"""
 	Integrate rotation through an NFW potential using kick-drift-kick leapfrog
 
@@ -328,6 +363,9 @@ def leapfrog_int_nfw_hf(pos_init,vel_init,rho_0_array,r_scale_array,
 			positions will be saved.
 		save_vel_array (np.array): A (2*num_dt+1)*N*3D array where the
 			velocities will be saved.
+		force_softening (np.array): A num_dt array of force softening scales
+			in units of 300 kpc. If none is passed in, a force softening of
+			0 will be applied.
 		box_length (float): The periodic box size. If np.inf then no periodic
 			boundary conditions will be used.
 	"""
@@ -342,6 +380,12 @@ def leapfrog_int_nfw_hf(pos_init,vel_init,rho_0_array,r_scale_array,
 
 	num_dt = len(pos_nfw_array)
 
+	# If no force softening is passed in, convert it to array of 0s
+	if force_softening is None:
+		fs_array = np.zeros(num_dt)
+	else:
+		fs_array = force_softening
+
 	for ti in range(num_dt):
 		# Save the pos and vel at this step
 		save_pos_array[ti] += pos_init
@@ -349,7 +393,8 @@ def leapfrog_int_nfw_hf(pos_init,vel_init,rho_0_array,r_scale_array,
 
 		# Kick step
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
-			pos_nfw_array[ti],pos_init,box_length=box_length)
+			pos_nfw_array[ti],pos_init,force_softening=fs_array[ti],
+			box_length=box_length)
 		# Add hubble drag
 		ai -= hf[ti]*vel_init
 		leapfrog_v_step(vel_init,dt/2,ai)
@@ -360,10 +405,12 @@ def leapfrog_int_nfw_hf(pos_init,vel_init,rho_0_array,r_scale_array,
 		# Drift step
 		hf_vel = hf[ti]*pos_init
 		leapfrog_p_step(pos_init,vel_init+hf_vel,dt)
+		enforce_box_boundary(pos_init,box_length)
 
 		# Kick step.
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
-			pos_nfw_array[ti],pos_init,box_length=box_length)
+			pos_nfw_array[ti],pos_init,force_softening=fs_array[ti],
+			box_length=box_length)
 		# Add hubble drag
 		ai -= hf[ti]*vel_init
 		leapfrog_v_step(vel_init,dt/2,ai)
@@ -578,6 +625,7 @@ def leapfrog_int_nfw_f_dyn_hf(pos_init,vel_init,m_sub,rho_0_array,
 		# Drift step
 		hf_vel = hf[ti]*pos_init
 		leapfrog_p_step(pos_init,vel_init+hf_vel,dt)
+		enforce_box_boundary(pos_init,box_length)
 
 		# Calculate the force on the particle at the new position.
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
