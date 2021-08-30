@@ -288,10 +288,10 @@ class IntegratorTestsNFW(unittest.TestCase):
 		vel_init = np.array([v_r,0,0],dtype=np.float64)
 		pos_nfw_array = np.tile(np.zeros(3,dtype=np.float64),(num_dt,1))
 		pos_nfw_array[:,:2] = 25
-		box_length = 60
+		box_length_array = np.ones(num_dt)*60
 		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0_array,
 			r_scale_array,pos_nfw_array,dt,save_pos,save_vel,
-			box_length=box_length)
+			box_length_array=box_length_array)
 		# Check that it returns to the original position once per period.
 		np.testing.assert_almost_equal(save_pos[0,:],save_pos[last_period,:],
 			decimal=3)
@@ -303,7 +303,7 @@ class IntegratorTestsNFW(unittest.TestCase):
 		pos_nfw_array[:,1] = 25
 		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0_array,
 			r_scale_array,pos_nfw_array,dt,save_pos,save_vel,
-			box_length=box_length)
+			box_length_array=box_length_array)
 		# Check that it returns to the original position once per period.
 		np.testing.assert_almost_equal(save_pos[0,:],save_pos[last_period,:],
 			decimal=3)
@@ -321,10 +321,10 @@ class IntegratorTestsNFW(unittest.TestCase):
 		pos_nfw_array = np.tile(np.zeros(3,dtype=np.float64),(num_dt,1))
 		vel_init = np.array([v_r/np.sqrt(2),-v_r/np.sqrt(2),0],
 			dtype=np.float64)
-		box_length = np.inf
+		box_length_array = None
 		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0_array,
 			r_scale_array,pos_nfw_array,dt,save_pos,save_vel,
-			force_softening=force_softening,box_length=box_length)
+			force_softening=force_softening,box_length_array=box_length_array)
 
 		# Check that it returns to the original position once per period.
 		np.testing.assert_almost_equal(save_pos[0,:],save_pos[last_period,:],

@@ -137,8 +137,25 @@ def calc_neg_grad_nb(part_pos,part_mass,pos,box_length=np.inf):
 
 
 @numba.njit()
+def _convert_to_array(array_or_none,length):
+	""" Take an input that is either a float or an array and convert it
+	to an array.
+
+	Args:
+		array_or_none (np.array): If none return an array of infs of
+			length length.
+		length (int): The length of the desired array
+	"""
+	# Convert the value to an array if a float was provided
+	if array_or_none is None:
+		return np.ones(length)*np.inf
+	else:
+		return array_or_none
+
+
+@numba.njit()
 def leapfrog_int_nb(part_pos,part_vel,part_mass,dt,num_dt,save_pos_array,
-	save_vel_array,box_length=np.inf):
+	save_vel_array,box_length_array=None):
 	"""
 	Integrate the n body problem using kick-drift-kick leapfrog
 
@@ -154,8 +171,8 @@ def leapfrog_int_nb(part_pos,part_vel,part_mass,dt,num_dt,save_pos_array,
 			positions will be saved.
 		save_vel_array (np.array): A (num_dt+1)*N*3D array where the
 			velocities will be saved.
-		box_length (float): The periodic box size. If np.inf then no periodic
-			boundary conditions will be used.
+		box_length_array (np.array): The periodic box size at each time step.
+			If None then no periodic boundary conditions will be used.
 	"""
 	# Number of particles
 	num_p = len(part_pos)
@@ -171,6 +188,9 @@ def leapfrog_int_nb(part_pos,part_vel,part_mass,dt,num_dt,save_pos_array,
 	save_pos_array *= 0
 	save_vel_array *= 0
 
+	# Deal with None being passed in for box_length_array
+	box_length_array = _convert_to_array(box_length_array,num_dt)
+
 	for ti in range(num_dt):
 		# Save the pos and vel at this step
 		save_pos_array[ti] += part_pos
@@ -185,7 +205,8 @@ def leapfrog_int_nb(part_pos,part_vel,part_mass,dt,num_dt,save_pos_array,
 			# Set the mass of this particle to 0
 			save_mass = part_mass[pi]
 			part_mass[pi] = 0
-			ai = calc_neg_grad_nb(part_pos,part_mass,pos,box_length)
+			ai = calc_neg_grad_nb(part_pos,part_mass,pos,
+				box_length_array[ti])
 
 			# Do a step of leapfrog integration on this particle
 			leapfrog_v_step(vel,dt/2,ai)
@@ -200,7 +221,7 @@ def leapfrog_int_nb(part_pos,part_vel,part_mass,dt,num_dt,save_pos_array,
 			vel = part_vel[pi]
 
 			leapfrog_p_step(pos,vel,dt)
-			enforce_box_boundary(pos,box_length)
+			enforce_box_boundary(pos,box_length_array[ti])
 
 		# Kick step
 		for pi in range(num_p):
@@ -211,7 +232,8 @@ def leapfrog_int_nb(part_pos,part_vel,part_mass,dt,num_dt,save_pos_array,
 			# Set the mass of this particle to 0
 			save_mass = part_mass[pi]
 			part_mass[pi] = 0
-			ai = calc_neg_grad_nb(part_pos,part_mass,pos,box_length)
+			ai = calc_neg_grad_nb(part_pos,part_mass,pos,
+				box_length_array[ti])
 
 			# Do a step of leapfrog integration on this particle
 			leapfrog_v_step(vel,dt/2,ai)
@@ -263,7 +285,8 @@ def calc_neg_grad_nfw(rho_0,r_scale,pos_nfw,pos,force_softening=0,
 
 @numba.njit()
 def leapfrog_int_nfw(pos_init,vel_init,rho_0_array,r_scale_array,pos_nfw_array,
-	dt,save_pos_array,save_vel_array,force_softening=None,box_length=np.inf):
+	dt,save_pos_array,save_vel_array,force_softening=None,
+	box_length_array=None):
 	"""
 	Integrate rotation through an NFW potential using kick-drift-kick leapfrog
 
@@ -287,8 +310,8 @@ def leapfrog_int_nfw(pos_init,vel_init,rho_0_array,r_scale_array,pos_nfw_array,
 		force_softening (np.array): A num_dt array of force softening scales
 			in units of 300 kpc. If none is passed in, a force softening of
 			0 will be applied.
-		box_length (float): The periodic box size. If np.inf then no periodic
-			boundary conditions will be used.
+		box_length_array (np.array): The periodic box size at each time step.
+			If None then no periodic boundary conditions will be used.
 	"""
 	# Clear save arrays in case they have values
 	save_pos_array *= 0
@@ -298,6 +321,9 @@ def leapfrog_int_nfw(pos_init,vel_init,rho_0_array,r_scale_array,pos_nfw_array,
 	ai = np.zeros(3,dtype=np.float64)
 
 	num_dt = len(pos_nfw_array)
+
+	# Deal with None being passed in for box_length_array
+	box_length_array = _convert_to_array(box_length_array,num_dt)
 
 	# If no force softening is passed in, convert it to array of 0s
 	if force_softening is None:
@@ -313,7 +339,7 @@ def leapfrog_int_nfw(pos_init,vel_init,rho_0_array,r_scale_array,pos_nfw_array,
 		# Kick step
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
 			pos_nfw_array[ti],pos_init,force_softening=fs_array[ti],
-			box_length=box_length)
+			box_length=box_length_array[ti])
 		leapfrog_v_step(vel_init,dt/2,ai)
 
 		# Reset the force vectors
@@ -321,12 +347,12 @@ def leapfrog_int_nfw(pos_init,vel_init,rho_0_array,r_scale_array,pos_nfw_array,
 
 		# Drift step
 		leapfrog_p_step(pos_init,vel_init,dt)
-		enforce_box_boundary(pos_init,box_length)
+		enforce_box_boundary(pos_init,box_length_array[ti])
 
 		# Kick step.
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
 			pos_nfw_array[ti],pos_init,force_softening=fs_array[ti],
-			box_length=box_length)
+			box_length=box_length_array[ti])
 		leapfrog_v_step(vel_init,dt/2,ai)
 
 		# Reset the force vectors
@@ -340,7 +366,7 @@ def leapfrog_int_nfw(pos_init,vel_init,rho_0_array,r_scale_array,pos_nfw_array,
 @numba.njit()
 def leapfrog_int_nfw_hf(pos_init,vel_init,rho_0_array,r_scale_array,
 	pos_nfw_array,hf,dt,save_pos_array,save_vel_array,force_softening=None,
-	box_length=np.inf):
+	box_length_array=None):
 	"""
 	Integrate rotation through an NFW potential using kick-drift-kick leapfrog
 
@@ -366,8 +392,8 @@ def leapfrog_int_nfw_hf(pos_init,vel_init,rho_0_array,r_scale_array,
 		force_softening (np.array): A num_dt array of force softening scales
 			in units of 300 kpc. If none is passed in, a force softening of
 			0 will be applied.
-		box_length (float): The periodic box size. If np.inf then no periodic
-			boundary conditions will be used.
+		box_length_array (np.array): The periodic box size at each time step.
+			If None then no periodic boundary conditions will be used.
 	"""
 	# Clear save arrays in case they have values
 	save_pos_array *= 0
@@ -379,6 +405,9 @@ def leapfrog_int_nfw_hf(pos_init,vel_init,rho_0_array,r_scale_array,
 	ai = np.zeros(3,dtype=np.float64)
 
 	num_dt = len(pos_nfw_array)
+
+	# Deal with None being passed in for box_length_array
+	box_length_array = _convert_to_array(box_length_array,num_dt)
 
 	# If no force softening is passed in, convert it to array of 0s
 	if force_softening is None:
@@ -394,7 +423,7 @@ def leapfrog_int_nfw_hf(pos_init,vel_init,rho_0_array,r_scale_array,
 		# Kick step
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
 			pos_nfw_array[ti],pos_init,force_softening=fs_array[ti],
-			box_length=box_length)
+			box_length=box_length_array[ti])
 		# Add hubble drag
 		ai -= hf[ti]*vel_init
 		leapfrog_v_step(vel_init,dt/2,ai)
@@ -405,12 +434,12 @@ def leapfrog_int_nfw_hf(pos_init,vel_init,rho_0_array,r_scale_array,
 		# Drift step
 		hf_vel = hf[ti]*pos_init
 		leapfrog_p_step(pos_init,vel_init+hf_vel,dt)
-		enforce_box_boundary(pos_init,box_length)
+		enforce_box_boundary(pos_init,box_length_array[ti])
 
 		# Kick step.
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
 			pos_nfw_array[ti],pos_init,force_softening=fs_array[ti],
-			box_length=box_length)
+			box_length=box_length_array[ti])
 		# Add hubble drag
 		ai -= hf[ti]*vel_init
 		leapfrog_v_step(vel_init,dt/2,ai)
@@ -550,7 +579,7 @@ def nfw_rho(r_scale,rho_0,pos_nfw,pos,box_length):
 @numba.njit()
 def leapfrog_int_nfw_f_dyn_hf(pos_init,vel_init,m_sub,rho_0_array,
 	r_scale_array,pos_nfw_array,hf,m_nfw_array,v_max_nfw_array,rho_vir,dt,
-	save_pos_array,save_vel_array,box_length=np.inf):
+	save_pos_array,save_vel_array,box_length_array=None):
 	"""
 	Integrate rotation through an NFW potential with dynamical friction
 
@@ -580,8 +609,8 @@ def leapfrog_int_nfw_f_dyn_hf(pos_init,vel_init,m_sub,rho_0_array,
 			positions will be saved.
 		save_vel_array (np.array): A (num_dt+1)*N*3D array where the
 			velocities will be saved.
-		box_length (float): The periodic box size. If np.inf then no periodic
-			boundary conditions will be used.
+		box_length_array (np.array): The periodic box size at each time step.
+			If None then no periodic boundary conditions will be used.
 	"""
 	# Clear save arrays in case they have values
 	save_pos_array *= 0
@@ -592,6 +621,9 @@ def leapfrog_int_nfw_f_dyn_hf(pos_init,vel_init,m_sub,rho_0_array,
 
 	num_dt = len(pos_nfw_array)
 
+	# Deal with None being passed in for box_length_array
+	box_length_array = _convert_to_array(box_length_array,num_dt)
+
 	for ti in range(num_dt):
 		# Save the pos and vel at this step
 		save_pos_array[ti] += pos_init
@@ -599,13 +631,13 @@ def leapfrog_int_nfw_f_dyn_hf(pos_init,vel_init,m_sub,rho_0_array,
 
 		# First get the force for the particle at the current position
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
-			pos_nfw_array[ti],pos_init,box_length=box_length)
+			pos_nfw_array[ti],pos_init,box_length=box_length_array[ti])
 
 		# Calculate the terms required for the dynamical friction term.
 		sigma_v = nfw_sigma_v(r_scale_array[ti],v_max_nfw_array[ti],
-			pos_nfw_array[ti],pos_init,box_length)
+			pos_nfw_array[ti],pos_init,box_length_array[ti])
 		rho = nfw_rho(rho_0_array[ti],r_scale_array[ti],pos_nfw_array[ti],
-			pos_init,box_length)
+			pos_init,box_length_array[ti])
 		ai += calc_neg_grad_f_dyn(vel_init,rho,m_sub,m_nfw_array[ti],sigma_v)
 
 		# Kick step
@@ -616,7 +648,7 @@ def leapfrog_int_nfw_f_dyn_hf(pos_init,vel_init,m_sub,rho_0_array,
 
 		# Also calculate the mass loss
 		m_sub += calc_mass_loss(vel_init,m_sub,m_nfw_array[ti],
-			rho_vir,pos_nfw_array[ti],pos_init,box_length)*dt
+			rho_vir,pos_nfw_array[ti],pos_init,box_length_array[ti])*dt
 		# Make sure the mass loss has not sent the mass to 0. A lower limit
 		# of the mass of the sun for a subhalo is probably more than
 		# generous enough.
@@ -625,15 +657,15 @@ def leapfrog_int_nfw_f_dyn_hf(pos_init,vel_init,m_sub,rho_0_array,
 		# Drift step
 		hf_vel = hf[ti]*pos_init
 		leapfrog_p_step(pos_init,vel_init+hf_vel,dt)
-		enforce_box_boundary(pos_init,box_length)
+		enforce_box_boundary(pos_init,box_length_array[ti])
 
 		# Calculate the force on the particle at the new position.
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
-			pos_nfw_array[ti],pos_init,box_length=box_length)
+			pos_nfw_array[ti],pos_init,box_length=box_length_array[ti])
 		sigma_v = nfw_sigma_v(r_scale_array[ti],v_max_nfw_array[ti],
-			pos_nfw_array[ti],pos_init,box_length)
+			pos_nfw_array[ti],pos_init,box_length_array[ti])
 		rho = nfw_rho(rho_0_array[ti],r_scale_array[ti],pos_nfw_array[ti],
-			pos_init,box_length)
+			pos_init,box_length_array[ti])
 		ai += calc_neg_grad_f_dyn(vel_init,rho,m_sub,m_nfw_array[ti],sigma_v)
 		leapfrog_v_step(vel_init,dt/2,ai)
 
