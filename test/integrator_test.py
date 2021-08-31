@@ -453,8 +453,7 @@ class IntegratorTestsNFW(unittest.TestCase):
 		for ti in range(num_dt):
 
 			# If we're not at the first step
-			if ti != 0:
-				vel_um += acc*dt_um*0.5
+			vel_um += acc*dt_um*0.5
 
 			dr = pos_nfw_array_um[ti]-pos_um
 			r = np.sqrt(np.sum(np.square(dr)))
@@ -466,8 +465,7 @@ class IntegratorTestsNFW(unittest.TestCase):
 
 			acc = accel*dr + h_drag[ti]*vel_um
 
-			if ti != 0:
-				vel_um += acc*dt_um*0.5
+			vel_um += acc*dt_um*0.5
 
 			pos_um += vel_um*vel_dt[ti] + acc*acc_dt2[ti]
 
@@ -484,23 +482,39 @@ class IntegratorTestsNFW(unittest.TestCase):
 		save_vel = (save_vel[:-1].T/conversion.convert_units_kms(1)).T
 
 		np.testing.assert_almost_equal((save_pos+1e-12)/(save_pos_um[:-1]+1e-12),
-			np.ones(save_pos.shape),decimal=0.2)
+			np.ones(save_pos.shape),decimal=2)
+		# This weird check is to deal with the fact that the z axis is 0 and
+		# that for very small velocities the differences in the code are more
+		# noticable (although clearly not relevant given the position match.)
+		np.testing.assert_almost_equal((save_vel[300:]+1e-12)/(
+			save_vel_um[300:-1]+1e-12),np.ones(save_vel[300:].shape),decimal=2)
 
-		# print(save_pos[-10:]/save_pos_um[:-1][-10:])
-		# print(save_vel[-10:]/save_vel_um[:-1][-10:])
+		# As a final test of the code consistency, pass no growth to our code
+		# and make sure it yields the same results as the code without the
+		# hubble flow.
+		pos_init = np.array([1,0,0],dtype=np.float)  # 300 kpc
+		vel_init = np.array([0.001,1,0],dtype=np.float)  # 400 km/s
+		save_pos = np.zeros((num_dt+1,3))
+		save_vel = np.zeros((num_dt+1,3))
+		box_length_array = np.ones(num_dt)*2
+		force_softening = np.ones(num_dt)*1e-3/conversion.convert_unit_Mpc(1)
+		hf_int *= 0
+		integrator.leapfrog_int_nfw_hf(pos_init,vel_init,rho_0_array,
+			r_scale_array,pos_nfw_array,hf_int,dt,save_pos,save_vel,
+			force_softening=force_softening,
+			box_length_array=box_length_array)
 
-		# import matplotlib.pyplot as plt
-		# plt.plot(save_pos[0,0],save_pos[0,1],'o',
-		# 	label=r'Start',ms=10)
-		# plt.plot(save_pos[:,0],save_pos[:,1],'.',
-		# 	label=r'$\dot{\delta v} = - H \delta v$')
-		# plt.plot(save_pos_um[:,0],save_pos_um[:,1],'.',
-		# 	label=r'$\dot{u}= - 2 H u$')
-		# plt.plot(0,0,'.',label='Host')
-		# plt.xlabel('x (comoving Mpc/h)')
-		# plt.ylabel('y (comoving Mpc/h)')
-		# plt.legend()
-		# plt.show()
+		pos_init = np.array([1,0,0],dtype=np.float)  # 300 kpc
+		vel_init = np.array([0.001,1,0],dtype=np.float)  # 400 km/s
+		save_pos_nhf = np.zeros((num_dt+1,3))
+		save_vel_nhf = np.zeros((num_dt+1,3))
+		integrator.leapfrog_int_nfw(pos_init,vel_init,rho_0_array,
+			r_scale_array,pos_nfw_array,dt,save_pos_nhf,save_vel_nhf,
+			force_softening=force_softening,
+			box_length_array=box_length_array)
+
+		np.testing.assert_almost_equal(save_pos,save_pos_nhf)
+		np.testing.assert_almost_equal(save_vel,save_vel_nhf)
 
 
 class IntegratorTestsFricDyn(unittest.TestCase):
