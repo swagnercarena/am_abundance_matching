@@ -16,7 +16,6 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.optimize import root_scalar
 from colossus.halo import profile_nfw, mass_so
-from scipy import signal
 
 
 class TrajectoriesIntegrator():
@@ -30,7 +29,6 @@ class TrajectoriesIntegrator():
 		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of
 			the colussus cosmology object that will be used for cosmology
 			calculations.
-		dt (float): The timestep that will be used for integration.
 		use_um (bool): If true use the universe machine choices for integration
 	"""
 
@@ -43,12 +41,6 @@ class TrajectoriesIntegrator():
 
 		# Store the boolean on universe machine
 		self.use_um = use_um
-
-		# Save the timestep size we want to use. Note this will not be
-		# the exact timestep used for the integration. It will be modified
-		# slightly for each integration to allow for integer number of time
-		# steps.
-		self._dt = dt
 
 		# Store the trajectory and cosmology objects
 		self.trj_host = trj_host
@@ -75,77 +67,38 @@ class TrajectoriesIntegrator():
 		self.host_r_s_rockstar = (self.host['rs'][self.host_snaps]/1e3*
 			self.host_scales)  # Mpc / h
 
-		# Calculate the number of time steps given the specified
-		# timestep length.
-		host_time_end = np.min(self.host_times)
-		host_time_start = self.host_times[0]
-		num_host_steps = int((host_time_start-host_time_end)//self._dt)
-		# Modify dt to allow integer time steps
-		self._dt = (host_time_end - host_time_start)/num_host_steps
-		self.host_times_interp = np.linspace(host_time_start,host_time_end,
-			num_host_steps)
-
-		# Get the scales associated with the interpolated time steps.
-		zs_interp = self.cosmo.lookbackTime(
-			self.host_times_interp/conversion.convert_unit_gigayear(1),
-			inverse=True)
-		self.host_scales_interp = 1/(1+zs_interp)
-
-		# Create an interpolation of the host mass, v_max, and r_s
-		self.host_mass_interp = np.exp(interp1d(self.host_times,np.log(
-			self.host_mass),kind='linear')(self.host_times_interp))
-		self.host_vmax_interp = interp1d(self.host_times,self.host_vmax,
-			kind='linear')(self.host_times_interp)
-		# cubic interpolation to match universe machine.
-		self.host_r_s_rockstar_interp = interp1d(self.host_times,
-			self.host_r_s_rockstar,kind='cubic')(self.host_times_interp)
-
 		# Now calculate the NFW amplitude, scale factor, and concentration for
 		# the host.
-		self.host_rho = np.zeros(
-			self.host_mass_interp.shape)  # M_sun / kpc^3 * h^2
-		self.host_r_s = np.zeros(self.host_mass_interp.shape)  # Mpc / h
-		self.host_c = np.zeros(self.host_mass_interp.shape)
-		self.host_r_vir = np.zeros(self.host_mass_interp.shape)  # Mpc / h
+		self.host_rho = np.zeros(self.host_mass.shape)  # M_sun / kpc^3 * h^2
+		self.host_r_s = np.zeros(self.host_mass.shape)  # Mpc / h
+		self.host_c = np.zeros(self.host_mass.shape)
+		self.host_r_vir = np.zeros(self.host_mass.shape)  # Mpc / h
 
 		# Populate the array of NFW parameters.
-		for i in range(len(self.host_mass_interp)):
+		for i in range(len(self.host_mass)):
 			if use_um:
-				self.host_r_s[i] = self.host_r_s_rockstar_interp[i]
-				c, rho = self._convert_m_r_s(self.host_mass_interp[i],
-					self.host_r_s[i],zs_interp[i])
+				self.host_r_s[i] = self.host_r_s_rockstar[i]
+				c, rho = self._convert_m_r_s(self.host_mass[i],
+					self.host_r_s[i],zs[i])
 				self.host_c[i] = c
 				self.host_rho[i] = rho
 			else:
-				c, rho, r_s, v_vir = self._convert_m_vmax(
-					self.host_mass_interp[i],self.host_vmax_interp[i],
-					zs_interp[i])
+				c, rho, r_s, v_vir, r_vir = self._convert_m_vmax(
+					self.host_mass[i],self.host_vmax[i],zs[i])
 				self.host_c[i] = c
 				self.host_rho[i] = rho
 				self.host_r_s[i] = r_s
 
-		# Calculate the virial radius but at our original timesteps. This
-		# is a little messy.
-		self.host_r_vir_interp = self.host_r_s*self.host_c  # Mpc/h
-		self.host_r_vir = interp1d(self.host_times_interp,self.host_r_vir_interp,
-			kind='cubic')(self.host_times)  # Mpc/h
+		# Calculate the virial radius
+		self.host_r_vir = self.host_r_s*self.host_c  # Mpc/h
 
 		# Convert to the units of our integration code.
 		self.host_rho_int = conversion.convert_units_density(
 			self.host_rho*cosmo.h**2)
 		self.host_r_s_int = conversion.convert_unit_Mpc(
 			self.host_r_s/cosmo.h)
-		# Note that we don't need to bother doing the interpolation on
-		# host_pos ahead of time since it isn't used to derive other
-		# fundamental units.
 		self.host_pos_int = conversion.convert_unit_Mpc(
 			(self.host_pos.T / cosmo.h *self.host_scales).T)
-
-		# Create our interpolation objects for later use
-		self.host_rho_interpolator = interp1d(self.host_times_interp,
-			self.host_rho_int)
-		self.host_r_s_interpolator = interp1d(self.host_times_interp,
-			self.host_r_s,kind='cubic')
 
 	def _convert_m_r_s(self,mass,r_s,z):
 		"""	Convert from mass and r_s to profile amplitude and concentration
@@ -209,14 +162,22 @@ class TrajectoriesIntegrator():
 		v_vir = profile_nfw.NFWProfile(M=mass,c=c,z=z,
 			mdef='vir').circularVelocity(c*r_s)
 
-		return c, rho, r_s, v_vir
+		# Divide the scale radius by 1000 to convert it to Mpc/h from kpc/h
+		r_s /= 1000
+		r_vir = r_s * c
 
-	def load_subhalo(self,sub_id):
+		return c, rho, r_s, v_vir, r_vir
+
+	def load_subhalo(self,sub_id,num_t_step,dt=None):
 		""" Load the subhalo properties for the given sub_id
 
 		Args:
 			sub_id (int): The id of the subhalo to integrate forward in the
 				potential.
+			num_t_step (int): The number of integration steps to use between
+				redshift of accretion and redshift 0.
+			dt (float): The timestep to use in the integration. This will
+				overwrite num_t_step.
 		"""
 
 		# Get the subhalo we want to integrate.
@@ -261,37 +222,42 @@ class TrajectoriesIntegrator():
 		self.time_start = np.min(self.host_times)
 		# If dt is specified use it to define the number of integartion
 		# steps.
-		num_t_step = int((self.time_start-self.time_end)//self._dt)
+		if dt is not None:
+			num_t_step = int((self.time_end - self.time_start)//dt)
 		self._num_t_step = num_t_step
 		# Even if dt is specified, getting a integer number of integration
 		# steps will not allow for that exact dt.
 		self.dt = (self.time_end - self.time_start)/self._num_t_step
 		self.times_int = np.linspace(self.time_start,self.time_end,
 			self._num_t_step)[::-1]
-		print(self.times_int)
 		self.scales_int = 1/(1+self.cosmo.lookbackTime(
-			self.times_int/conversion.convert_unit_gigayear(1),
-			inverse=True))
+			self.times_int/3.154e+16*2.31425819e16,inverse=True))
 
 		# Interpolate the subhalo properties for integation
 		self.pos_nfw_array = np.zeros((self._num_t_step,3))
 		for i in range(3):
 			self.pos_nfw_array[:,i] = interp1d(self.host_times,
 				self.host_pos_int[:,i],kind='cubic')(self.times_int)
-		self.rho_0_array = self.host_rho_interpolator(self.times_int)
-		self.r_scale_array = self.host_r_s_interpolator(self.times_int)
+		self.rho_0_array = interp1d(self.host_times,self.host_rho_int)(
+			self.times_int)
+		self.r_scale_array = interp1d(self.host_times,self.host_r_s_int)(
+			self.times_int)
 
 		# Get the box length and convert it to physical coordinates
 		self.box_length_array = conversion.convert_unit_Mpc(self.trj_host.L/
 			self.cosmo.h * self.scales_int)
 
-	def integrate_sub_hf(self,sub_id):
+	def integrate_sub_hf(self,sub_id,num_t_step=int(1e4),dt=None):
 		""" Integrate the path of a subhalo assuming an NFW potential for the
 		main host and accounting for the hubble flow.
 
 		Args:
 			sub_id (int): The id of the subhalo to integrate forward in the
 				potential.
+			num_t_step (int): The number of integration steps to use between
+				redshift of accretion and redshift 0.
+			dt (float): The timestep to use in the integration. This will
+				overwrite num_t_step.
 
 		Returns:
 			((np.array,np.array)): A tuple containing two numpy arrays, the
@@ -303,7 +269,7 @@ class TrajectoriesIntegrator():
 			within the virial radius of the host.
 		"""
 
-		self.load_subhalo(sub_id)
+		self.load_subhalo(sub_id,num_t_step,dt)
 
 		# For simplicity, ignore subhalos that appear before the host or do not
 		# survive until redshift 0.
@@ -334,7 +300,7 @@ class TrajectoriesIntegrator():
 
 		return save_pos_comv, save_vel_comv
 
-	def integrate_sub_rf(self,sub_id):
+	def integrate_sub_rf(self,sub_id,num_t_step=int(1e4),dt=None):
 		""" Integrate the path of a subhalo assuming an NFW potential for the
 		main host and integrating in the host's frame of reference.
 
@@ -356,7 +322,7 @@ class TrajectoriesIntegrator():
 			within the virial radius of the host.
 		"""
 
-		self.load_subhalo(sub_id)
+		self.load_subhalo(sub_id,num_t_step,dt)
 
 		# For simplicity, ignore subhalos that appear before the host or do not
 		# survive until redshift 0.
