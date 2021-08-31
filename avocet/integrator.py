@@ -579,7 +579,7 @@ def nfw_rho(r_scale,rho_0,pos_nfw,pos,box_length):
 @numba.njit()
 def leapfrog_int_nfw_f_dyn_hf(pos_init,vel_init,m_sub,rho_0_array,
 	r_scale_array,pos_nfw_array,hf,m_nfw_array,v_max_nfw_array,rho_vir,dt,
-	save_pos_array,save_vel_array,box_length_array=None):
+	save_pos_array,save_vel_array,force_softening=None,box_length_array=None):
 	"""
 	Integrate rotation through an NFW potential with dynamical friction
 
@@ -609,6 +609,9 @@ def leapfrog_int_nfw_f_dyn_hf(pos_init,vel_init,m_sub,rho_0_array,
 			positions will be saved.
 		save_vel_array (np.array): A (num_dt+1)*N*3D array where the
 			velocities will be saved.
+		force_softening (np.array): A num_dt array of force softening scales
+			in units of 300 kpc. If none is passed in, a force softening of
+			0 will be applied.
 		box_length_array (np.array): The periodic box size at each time step.
 			If None then no periodic boundary conditions will be used.
 	"""
@@ -621,6 +624,12 @@ def leapfrog_int_nfw_f_dyn_hf(pos_init,vel_init,m_sub,rho_0_array,
 
 	num_dt = len(pos_nfw_array)
 
+	# If no force softening is passed in, convert it to array of 0s
+	if force_softening is None:
+		fs_array = np.zeros(num_dt)
+	else:
+		fs_array = force_softening
+
 	# Deal with None being passed in for box_length_array
 	box_length_array = _convert_to_array(box_length_array,num_dt)
 
@@ -631,7 +640,8 @@ def leapfrog_int_nfw_f_dyn_hf(pos_init,vel_init,m_sub,rho_0_array,
 
 		# First get the force for the particle at the current position
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
-			pos_nfw_array[ti],pos_init,box_length=box_length_array[ti])
+			pos_nfw_array[ti],pos_init,force_softening=fs_array[ti],
+			box_length=box_length_array[ti])
 
 		# Calculate the terms required for the dynamical friction term.
 		sigma_v = nfw_sigma_v(r_scale_array[ti],v_max_nfw_array[ti],
@@ -661,7 +671,8 @@ def leapfrog_int_nfw_f_dyn_hf(pos_init,vel_init,m_sub,rho_0_array,
 
 		# Calculate the force on the particle at the new position.
 		ai += calc_neg_grad_nfw(rho_0_array[ti],r_scale_array[ti],
-			pos_nfw_array[ti],pos_init,box_length=box_length_array[ti])
+			pos_nfw_array[ti],pos_init,force_softening=fs_array[ti],
+			box_length=box_length_array[ti])
 		sigma_v = nfw_sigma_v(r_scale_array[ti],v_max_nfw_array[ti],
 			pos_nfw_array[ti],pos_init,box_length_array[ti])
 		rho = nfw_rho(rho_0_array[ti],r_scale_array[ti],pos_nfw_array[ti],
