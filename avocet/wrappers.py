@@ -37,7 +37,7 @@ class TrajectoriesIntegrator():
 	XMAX = 2.16258
 	C_VALS = np.linspace(1,50,int(2e2))
 
-	def __init__(self,trj_host,cosmo,dt,use_um=False):
+	def __init__(self,trj_host,cosmo,use_um=False):
 
 		# Store the boolean on universe machine
 		self.use_um = use_um
@@ -231,7 +231,8 @@ class TrajectoriesIntegrator():
 		self.times_int = np.linspace(self.time_start,self.time_end,
 			self._num_t_step)[::-1]
 		self.scales_int = 1/(1+self.cosmo.lookbackTime(
-			self.times_int/3.154e+16*2.31425819e16,inverse=True))
+			self.times_int/conversion.convert_unit_gigayear(1),
+			inverse=True))
 
 		# Interpolate the subhalo properties for integation
 		self.pos_nfw_array = np.zeros((self._num_t_step,3))
